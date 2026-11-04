@@ -2,7 +2,9 @@
    Lo carga el marcador «Vobaca». Funciona en tres modos:
    1. Sin nada más: lee el mazo oficial abierto (o pide un código) y lo manda a Vobaca Proxies.
    2. #vobaca=… con a:'img': dibuja la imagen del mazo con las cartas reales.
-   3. #vobaca=… con a:'build': rellena el constructor oficial con el mazo para guardarlo y obtener un código oficial. */
+   3. #vobaca=… con a:'build': rellena el constructor oficial con el mazo para guardarlo y obtener un código oficial.
+   4. #vobaca=… con a:'cards': busca cartas que la herramienta aún no tiene y se las manda.
+   5. #vobaca=… con a:'decks': descarga los mazos públicos y se los manda a la herramienta. */
 (function () {
   var ME = document.currentScript && document.currentScript.src;
   var HOME = ME ? new URL('./', ME).href : '';
@@ -15,6 +17,22 @@
   var b64u = function (str) { var b = new TextEncoder().encode(str), bin = ''; b.forEach(function (x) { bin += String.fromCharCode(x); }); return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
   var unb64u = function (s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; var bin = atob(s); return new TextDecoder().decode(Uint8Array.from(bin, function (ch) { return ch.charCodeAt(0); })); };
 
+  // Comprime (si el navegador puede) para que el enlace de vuelta a la herramienta sea corto
+  function pack(obj) {
+    var str = JSON.stringify(obj);
+    var toB64 = function (u8) { var bin = ''; for (var i = 0; i < u8.length; i += 8192) bin += String.fromCharCode.apply(null, u8.subarray(i, i + 8192)); return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
+    if (!window.CompressionStream) return Promise.resolve('j' + b64u(str));
+    var cs = new Blob([str]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+    return new Response(cs).arrayBuffer().then(function (buf) { return 'z' + toB64(new Uint8Array(buf)); });
+  }
+  function sendBack(param, data, title, lines) {
+    return pack(data).then(function (z) {
+      var url = HOME + '#' + param + '=' + z;
+      box('<b>' + esc(title) + '</b>' + lines.map(function (l) { return '<span>' + l + '</span>'; }).join('') +
+        (HOME ? '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">' + closeBtn + '<a style="' + B1 + '" href="' + esc(url) + '">Abrir en Vobaca Proxies</a></div>'
+          : '<span style="color:#b00">Este marcador no sabe dónde está tu herramienta. Instala el marcador desde tu web de Vobaca Proxies.</span><div style="display:flex;justify-content:flex-end">' + closeBtn + '</div>'));
+    });
+  }
   function box(inner) {
     var old = document.getElementById('vbx'); if (old) old.remove();
     var d = document.createElement('div'); d.id = 'vbx';
@@ -141,6 +159,58 @@
     }).catch(function (e) { fail('No se ha podido cargar el mazo en el constructor: ' + e.message); });
   }
 
+  // ---------- Modo 4: cartas nuevas ----------
+  function pagesOf(url) {
+    return fetch(url + 1).then(function (r) { return r.json(); }).then(function (first) {
+      var pages = Math.ceil(first.count / Math.max(1, first.items.length)), reqs = [];
+      for (var p = 2; p <= pages; p++) reqs.push(fetch(url + p).then(function (r) { return r.json(); }));
+      return Promise.all(reqs).then(function (rest) { var all = first.items; rest.forEach(function (x) { all = all.concat(x.items || []); }); return all; });
+    });
+  }
+  function newCards(P) {
+    box('<b>Buscando cartas nuevas en la web oficial…</b><span style="font-size:14px;color:#555">Tarda unos segundos.</span>');
+    var known = {}; String(P.k || '').split(',').forEach(function (k) { if (k) known['HV-' + k] = 1; });
+    var Q = 'itemsearch.php?para=normal%2Cp%2Ca&p=';
+    var txt = function (t) { t = String(t == null ? '' : t).replace(/\r\n|\r|\n/g, '¶').trim(); return t === '-' ? '' : t; };
+    var stat = function (v) { v = String(v == null ? '' : v).trim(); return /^\d$/.test(v) ? v : '-'; };
+    return Promise.all([pagesOf(BASE + 'cardlist/' + Q), pagesOf(BASE + 'english/cardlist/' + Q).catch(function () { return []; })]).then(function (res) {
+      var jp = [], en = [];
+      res[0].forEach(function (c) {
+        if (known[c.card_no + '-' + c.image_end]) return;
+        jp.push([c.card_no, c.image_end, c.name, c.category === 'EVENT' ? 'E' : 'C', c.affiliation || '', c.position || '',
+          [c.serve, c.block, c.receive, c.toss, c.attack].map(stat).join(''), txt(c.skill), txt(c.annotation), c.product_name || '']);
+      });
+      res[1].forEach(function (c) {
+        if (known[c.card_no + '-EN-' + c.image_end]) return;
+        en.push([c.card_no, c.image_end, c.name, c.category === 'EVENT' ? 'E' : 'C', txt(c.skill), txt(c.annotation), c.product_name || '']);
+      });
+      var total = res[0].length + res[1].length;
+      if (!jp.length && !en.length) { box('<b>No hay cartas nuevas</b><span>Tu herramienta ya tiene las ' + total + ' cartas de la web oficial.</span><div style="display:flex;justify-content:flex-end">' + closeBtn + '</div>'); return; }
+      return sendBack('vbcards', { v: 1, date: new Date().toISOString(), jp: jp, en: en }, 'Cartas nuevas encontradas',
+        [jp.length + ' japonesas y ' + en.length + ' inglesas que tu herramienta aún no tiene.', 'Pulsa «Abrir en Vobaca Proxies» para añadirlas.']);
+    });
+  }
+
+  // ---------- Modo 5: mazos públicos ----------
+  function publicDecks() {
+    box('<b>Descargando los mazos públicos…</b><span style="font-size:14px;color:#555">Tarda unos segundos.</span>');
+    var url = BASE + 'deck/deck_list.php?per_page=100&page=';
+    return fetch(url + 1).then(function (r) { return r.json(); }).then(function (first) {
+      var pages = Math.min(10, Math.ceil((first.total_count || 0) / 100)), reqs = [];
+      for (var p = 2; p <= pages; p++) reqs.push(fetch(url + p).then(function (r) { return r.json(); }));
+      return Promise.all(reqs).then(function (rest) {
+        var all = first.decks || []; rest.forEach(function (x) { all = all.concat(x.decks || []); });
+        var decks = all.map(function (d) {
+          var tags = Array.isArray(d.tags) ? d.tags.map(function (t) { return (t && t.name) || t; }).join(',') : (d.tags || '');
+          return [d.deck_key, d.recommendation_name || '', d.recommendation_creator || '', d.updated_at || '', +d.favorite_count || 0, tags,
+            (d.recommendation_card_no_1 || ''), (d.cards || []).map(function (c) { return [c.card_no + '-' + c.image_end, +c.count || 1, c.category === 'EVENT' ? 'E' : (c.role === 'フリー' ? '' : c.role || '')]; })];
+        });
+        return sendBack('vbdecks', { v: 1, date: new Date().toISOString(), decks: decks }, decks.length + ' mazos públicos descargados',
+          ['Pulsa «Abrir en Vobaca Proxies» para verlos, filtrarlos e importarlos.']);
+      });
+    });
+  }
+
   // ---------- Modo 1: mazo oficial → Vobaca Proxies ----------
   function importOfficial() {
     var k = (location.search.match(/deck_key=([A-Za-z0-9]+)/) || [])[1] || prompt('Código de mazo oficial de Vobaca');
@@ -172,6 +242,7 @@
     });
   }
 
-  var run = !payload ? importOfficial() : payload.a === 'img' ? drawImage(payload) : payload.a === 'build' ? build(payload) : (fail('Este enlace no es de Vobaca Proxies.'), null);
+  var run = !payload ? importOfficial() : payload.a === 'img' ? drawImage(payload) : payload.a === 'build' ? build(payload)
+    : payload.a === 'cards' ? newCards(payload) : payload.a === 'decks' ? publicDecks() : (fail('Este enlace no es de Vobaca Proxies.'), null);
   if (run && run.catch) run.catch(function (e) { fail('Error: ' + e.message); });
 })();

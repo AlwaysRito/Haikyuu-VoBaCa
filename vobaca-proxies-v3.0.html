@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- Vobaca Proxies v3.0 · imprimir con la carta inglesa · marcador de partida · traducir el mazo entero · organizar mazos · cartas prohibidas/restringidas -->
+<!-- Vobaca Proxies v3.1 · etiquetas que se crean una vez y se ponen con un toque · selector de mazos agrupado por etiquetas -->
 <title>Vobaca Proxies</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#1b2330">
@@ -389,6 +389,15 @@ dialog.mt-dlg{width:min(720px,calc(100vw - 16px));max-height:calc(100dvh - 16px)
 .mt-help{font-size:12px;color:var(--muted);margin:2px 0 8px}
 .mt-end{border:2px solid var(--accent);border-radius:12px;padding:10px;margin:10px 0;display:grid;gap:8px;text-align:center}
 .mt-end b{font:700 22px var(--display)}
+.dk-tags{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.dk-tags .tg{border:1px solid var(--line);background:var(--panel);color:var(--fg);border-radius:999px;padding:5px 12px;font:600 13px var(--body);cursor:pointer}
+.dk-tags .tg.on{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.dk-tags .tg.add{border-style:dashed;color:var(--muted)}
+.dk-tags small{color:var(--muted);font-size:12px}
+.tg-man{display:grid;gap:4px;margin-top:6px}
+.tg-man div{display:flex;gap:8px;align-items:center;border-top:1px solid var(--line);padding:6px 0;font-size:14px}
+.tg-man span{flex:1}
+.tg-man small{color:var(--muted)}
 .dk-foot .syerr{border-color:#c0392b;color:#c0392b}
 .hint{max-width:60ch;color:var(--muted);font-size:14px;text-align:center;margin:0}
 
@@ -406,7 +415,7 @@ dialog.mt-dlg{width:min(720px,calc(100vw - 16px));max-height:calc(100dvh - 16px)
 <body>
 <header>
   <div class="top">
-    <h1>Vobaca <span>Proxies</span> <small class="ver" title="Versión de la herramienta">v3.0</small></h1>
+    <h1>Vobaca <span>Proxies</span> <small class="ver" title="Versión de la herramienta">v3.1</small></h1>
     <div class="topr">
       <div class="seg" role="group" aria-label="Idioma de las cartas">
         <button type="button" id="langJP" aria-pressed="true">JP</button><button type="button" id="langEN" aria-pressed="false">EN</button>
@@ -459,7 +468,8 @@ dialog.mt-dlg{width:min(720px,calc(100vw - 16px));max-height:calc(100dvh - 16px)
     </div>
   </div>
   <input id="dkName" class="dk-name" placeholder="Nombre del mazo" maxlength="60" autocomplete="off">
-  <div class="dk-meta"><button class="linkbtn" id="dkFav" type="button">☆ Marcar como favorito</button><input id="dkTags" placeholder="Etiquetas: torneo, pruebas, Karasuno…" maxlength="120" autocomplete="off"></div>
+  <div class="dk-meta"><button class="linkbtn" id="dkFav" type="button">☆ Marcar como favorito</button></div>
+  <div class="dk-tags" id="dkTags" aria-label="Etiquetas del mazo"></div>
   <div class="dk-sum">
     <div class="dk-total"><b id="dkTotal">0</b><span>/ 40</span></div>
     <div class="dk-checks" id="dkChecks"></div>
@@ -658,6 +668,8 @@ dialog.mt-dlg{width:min(720px,calc(100vw - 16px));max-height:calc(100dvh - 16px)
     <select id="dlSort" class="mini" aria-label="Orden"><option value="upd">Cambiados hace poco</option><option value="name">Por nombre</option><option value="size">Por número de cartas</option></select></div>
   <div class="dl-tags" id="dlTags"></div>
   <div id="dlList"></div>
+  <details class="pt-prob"><summary>Gestionar etiquetas</summary><div class="tg-man" id="tgMan"></div>
+    <div class="lg-row" style="margin-top:8px"><input id="tgNewName" maxlength="24" placeholder="Nueva etiqueta" autocomplete="off"><button class="btn ghost" id="tgNewBtn" type="button">Crear</button></div></details>
   <div class="row"><span class="msg" id="dlMsg"></span><button class="btn" id="dlClose" type="button">Cerrar</button></div>
 </dialog>
 
@@ -1699,6 +1711,9 @@ try { LG = JSON.parse(localStorage.getItem('vobaca-liga') || '{}') || {}; } catc
 // Poner el rol sugerido al añadir cartas (se puede desactivar)
 let AUTO_ROLE = true;
 try { AUTO_ROLE = localStorage.getItem('vobaca-autorole') !== '0'; } catch (e) {}
+// Etiquetas creadas (lista común para todos los mazos): { list, t }
+let TAGS = { list: [], t: 0 };
+try { TAGS = JSON.parse(localStorage.getItem('vobaca-tags') || 'null') || TAGS; } catch (e) {}
 let USE_EN = false;                 // imprimir con la carta inglesa oficial cuando exista
 try { USE_EN = localStorage.getItem('vobaca-useen') === '1'; } catch (e) {}
 let DEL = {};                       // mazos borrados: id -> fecha (para que la sincronización no los resucite)
@@ -2232,8 +2247,16 @@ $('printBtn').onclick = () => window.print();
 
 // ---- Mazo ----
 function renderDeckPicker() {
-  $('dkSel').innerHTML = decks.map((d, i) => ({ d, i })).sort((a, b) => (b.d.fav ? 1 : 0) - (a.d.fav ? 1 : 0) || a.i - b.i)
-    .map(({ d, i }) => `<option value="${i}">${d.fav ? '★ ' : ''}${esc(d.name || 'Sin nombre')}</option>`).join('');
+  const all = decks.map((d, i) => ({ d, i })).sort((a, b) => (b.d.fav ? 1 : 0) - (a.d.fav ? 1 : 0) || a.i - b.i);
+  const o = ({ d, i }) => `<option value="${i}">${d.fav ? '★ ' : ''}${esc(d.name || 'Sin nombre')}</option>`;
+  const tl = tagList().filter(t => decks.some(d => (d.tags || []).includes(t)));
+  if (!tl.length) $('dkSel').innerHTML = all.map(o).join('');
+  else {
+    // Cada mazo va en el grupo de su primera etiqueta (según el orden de la lista)
+    const groups = tl.map(t => [t, all.filter(x => deckTags(x.d)[0] === t)]).filter(([, l]) => l.length);
+    const none = all.filter(x => !deckTags(x.d).length);
+    $('dkSel').innerHTML = groups.map(([t, l]) => `<optgroup label="${esc(t)}">${l.map(o).join('')}</optgroup>`).join('') + (none.length ? `<optgroup label="Sin etiqueta">${none.map(o).join('')}</optgroup>` : '');
+  }
   $('dkSel').value = String(cur);
   $('dkName').value = decks[cur].name || '';
 }
@@ -2323,8 +2346,8 @@ $('dkCode').onclick = async () => {
 $('dkImg').onclick = () => makeDeckImage();
 
 // ---- Copia de seguridad (todos los datos de este dispositivo) ----
-const APP_VERSION = '3.0';
-const BK_KEYS = ['vobaca-decks', 'vobaca-tr', 'vobaca-lang', 'vobaca-ovl', 'vobaca-incmaybe', 'vobaca-lay', 'vobaca-trlang', 'vobaca-col', 'vobaca-onlymiss', 'vobaca-extra', 'vobaca-games', 'vobaca-autorole', 'vobaca-useen'];
+const APP_VERSION = '3.1';
+const BK_KEYS = ['vobaca-decks', 'vobaca-tr', 'vobaca-lang', 'vobaca-ovl', 'vobaca-incmaybe', 'vobaca-lay', 'vobaca-trlang', 'vobaca-col', 'vobaca-onlymiss', 'vobaca-extra', 'vobaca-games', 'vobaca-autorole', 'vobaca-useen', 'vobaca-tags'];
 function buildBackup() {
   save(); saveTR(); saveLAY();
   const data = {};
@@ -3622,23 +3645,67 @@ function banChecks() {
 }
 
 // ---- Organizar los mazos: favoritos, etiquetas y lista ----
-const deckTags = d => Array.isArray(d.tags) ? d.tags : [];
+// Lista de etiquetas: las creadas más las que ya tenga algún mazo (por si vienen de otro dispositivo o de una copia)
+const tagList = () => { const l = [...(TAGS.list || [])]; decks.forEach(d => (Array.isArray(d.tags) ? d.tags : []).forEach(t => { if (!l.includes(t)) l.push(t); })); return l; };
+const deckTags = d => { const l = tagList(); return (Array.isArray(d.tags) ? d.tags : []).slice().sort((a, b) => l.indexOf(a) - l.indexOf(b)); };
+const saveTAGS = () => { TAGS.t = Date.now(); try { localStorage.setItem('vobaca-tags', JSON.stringify(TAGS)); } catch (e) {} syncSoon(); };
+function addTag(name) {
+  name = String(name || '').trim().slice(0, 24); if (!name) return '';
+  const ex = tagList().find(t => t.toLowerCase() === name.toLowerCase()); if (ex) return ex;
+  TAGS.list = [...tagList(), name]; saveTAGS(); return name;
+}
+function toggleDeckTag(t) {
+  const d = decks[cur], l = Array.isArray(d.tags) ? d.tags : [];
+  d.tags = l.includes(t) ? l.filter(x => x !== t) : [...l, t];
+  save(); paintDeckMeta(); renderDeckPicker();
+}
 function paintDeckMeta() {
   const d = decks[cur]; if (!d) return;
   $('dkFav').textContent = d.fav ? '★ Favorito' : '☆ Marcar como favorito';
   $('dkFav').classList.toggle('on', !!d.fav);
-  if (document.activeElement !== $('dkTags')) $('dkTags').value = deckTags(d).join(', ');
+  const mine = Array.isArray(d.tags) ? d.tags : [], box = $('dkTags');
+  const l = tagList();
+  box.innerHTML = (l.length ? '' : '<small>Etiquetas:</small>') + l.map(t => `<button type="button" class="tg${mine.includes(t) ? ' on' : ''}" data-t="${esc(t)}" aria-pressed="${mine.includes(t)}">${esc(t)}</button>`).join('') +
+    `<button type="button" class="tg add" id="tgAdd">+ Nueva etiqueta</button>`;
+  box.querySelectorAll('.tg[data-t]').forEach(b => b.onclick = () => toggleDeckTag(b.dataset.t));
+  $('tgAdd').onclick = () => {
+    const n = prompt('Nombre de la etiqueta nueva (por ejemplo: Torneo, Pruebas, Karasuno):'); if (!n) return;
+    const t = addTag(n); if (!t) return;
+    if (!(decks[cur].tags || []).includes(t)) toggleDeckTag(t); else paintDeckMeta();
+  };
 }
 $('dkFav').onclick = () => { decks[cur].fav = !decks[cur].fav; save(); paintDeckMeta(); renderDeckPicker(); };
-$('dkTags').addEventListener('change', () => {
-  decks[cur].tags = [...new Set($('dkTags').value.split(',').map(t => t.trim()).filter(Boolean))].slice(0, 8);
-  save(); paintDeckMeta();
-});
+// Gestionar etiquetas: renombrar, borrar y crear
+function renderTagMan() {
+  const l = tagList(), box = $('tgMan');
+  box.innerHTML = l.length ? '' : '<p class="hint" style="text-align:left">Aún no has creado etiquetas.</p>';
+  l.forEach(t => {
+    const n = decks.filter(d => (d.tags || []).includes(t)).length;
+    const row = document.createElement('div');
+    row.innerHTML = `<span></span><small>${n} ${n === 1 ? 'mazo' : 'mazos'}</small><button type="button" class="linkbtn" data-a="up">↑</button><button type="button" class="linkbtn" data-a="ren">Renombrar</button><button type="button" class="linkbtn" data-a="del">Borrar</button>`;
+    row.querySelector('span').textContent = t;
+    row.querySelector('[data-a="up"]').onclick = () => { const L = tagList(), i = L.indexOf(t); if (i > 0) { [L[i - 1], L[i]] = [L[i], L[i - 1]]; TAGS.list = L; saveTAGS(); renderTagMan(); renderDeckLib(); renderDeckPicker(); paintDeckMeta(); } };
+    row.querySelector('[data-a="ren"]').onclick = () => {
+      const nn = (prompt('Nuevo nombre para «' + t + '»:', t) || '').trim().slice(0, 24); if (!nn || nn === t) return;
+      TAGS.list = tagList().map(x => x === t ? nn : x).filter((x, i, a) => a.indexOf(x) === i);
+      decks.forEach(d => { if ((d.tags || []).includes(t)) d.tags = [...new Set(d.tags.map(x => x === t ? nn : x))]; });
+      saveTAGS(); save(); renderTagMan(); renderDeckLib(); renderDeckPicker(); paintDeckMeta();
+    };
+    row.querySelector('[data-a="del"]').onclick = () => {
+      if (!confirm(`¿Borrar la etiqueta «${t}»? Se quitará de ${n} ${n === 1 ? 'mazo' : 'mazos'} (los mazos no se borran).`)) return;
+      TAGS.list = tagList().filter(x => x !== t); decks.forEach(d => { if ((d.tags || []).includes(t)) d.tags = d.tags.filter(x => x !== t); });
+      if (dlTag === t) dlTag = '';
+      saveTAGS(); save(); renderTagMan(); renderDeckLib(); renderDeckPicker(); paintDeckMeta();
+    };
+    box.appendChild(row);
+  });
+}
+$('tgNewBtn').onclick = () => { const t = addTag($('tgNewName').value); $('tgNewName').value = ''; if (t) { renderTagMan(); renderDeckLib(); paintDeckMeta(); } };
 let dlTag = '';
 function renderDeckLib() {
   const q = normQ($('dlQ').value), sort = $('dlSort').value;
   const all = {}; decks.forEach(d => deckTags(d).forEach(t => all[t] = (all[t] || 0) + 1));
-  const chips = [['', 'Todos'], ['★', '★ Favoritos'], ...Object.keys(all).sort((a, b) => a.localeCompare(b, 'es')).map(t => [t, `${t} (${all[t]})`])];
+  const chips = [['', 'Todos'], ['★', '★ Favoritos'], ...tagList().map(t => [t, `${t} (${all[t] || 0})`])];
   $('dlTags').innerHTML = chips.map(([k, l]) => `<button type="button" class="btn ghost${dlTag === k ? ' on' : ''}" data-t="${esc(k)}">${esc(l)}</button>`).join('');
   $('dlTags').querySelectorAll('button').forEach(b => b.onclick = () => { dlTag = b.dataset.t; renderDeckLib(); });
   let list = decks.map((d, i) => ({ d, i, n: Object.values(d.sel || {}).reduce((a, b) => a + b, 0) }));
@@ -3659,7 +3726,7 @@ function renderDeckLib() {
   if (!list.length) box.innerHTML = '<p class="hint">Ningún mazo coincide.</p>';
   $('dlMsg').textContent = `${list.length} de ${decks.length} mazos`;
 }
-function openDeckLib() { $('dlQ').value = ''; renderDeckLib(); const d = $('dlDlg'); d.showModal ? d.showModal() : d.setAttribute('open', ''); }
+function openDeckLib() { $('dlQ').value = ''; renderDeckLib(); renderTagMan(); const d = $('dlDlg'); d.showModal ? d.showModal() : d.setAttribute('open', ''); }
 const closeDeckLib = () => { const d = $('dlDlg'); d.close ? d.close() : d.removeAttribute('open'); };
 ['dlQ', 'dlSort'].forEach(id => $(id).addEventListener('input', renderDeckLib));
 $('dlClose').onclick = closeDeckLib;
@@ -3775,13 +3842,14 @@ function mergeSync(L, R) {
   const col = { ...(R.col || {}) };
   Object.entries(L.col || {}).forEach(([k, v]) => { if (!col[k] || (v.t || 0) >= (col[k].t || 0)) col[k] = v; });
   const liga = ((L.liga && L.liga.t) || 0) >= ((R.liga && R.liga.t) || 0) ? (L.liga || {}) : R.liga;
+  const tags = ((L.tags && L.tags.t) || 0) >= ((R.tags && R.tags.t) || 0) ? (L.tags || { list: [], t: 0 }) : R.tags;
   const games = { ...(R.games || {}) };
   Object.entries(L.games || {}).forEach(([k, v]) => { if (!games[k] || (v.t || 0) >= (games[k].t || 0)) games[k] = v; });
-  return { decks: decks2, del, tr, lay, col, games, liga };
+  return { decks: decks2, del, tr, lay, col, games, liga, tags };
 }
-const localSync = () => ({ decks: decks.map(cleanDeck), del: DEL, tr: TR, lay: LAY, col: COL, games: GAMES, liga: LG });
+const localSync = () => ({ decks: decks.map(cleanDeck), del: DEL, tr: TR, lay: LAY, col: COL, games: GAMES, liga: LG, tags: TAGS });
 // El orden de los mazos es de cada dispositivo: no cuenta como cambio
-const stateKey = x => canon([[...(x.decks || [])].sort((p, q) => p.id < q.id ? -1 : 1), x.del || {}, x.tr || {}, x.lay || {}, x.col || {}, x.games || {}, x.liga || {}]);
+const stateKey = x => canon([[...(x.decks || [])].sort((p, q) => p.id < q.id ? -1 : 1), x.del || {}, x.tr || {}, x.lay || {}, x.col || {}, x.games || {}, x.liga || {}, x.tags || {}]);
 function applySync(M) {
   applying = true;
   const curId = decks[cur] && decks[cur].id;
@@ -3792,6 +3860,7 @@ function applySync(M) {
   Object.keys(COL).forEach(k => delete COL[k]); Object.assign(COL, M.col || {});
   Object.keys(GAMES).forEach(k => delete GAMES[k]); Object.assign(GAMES, M.games || {});
   if (M.liga) { LG = M.liga; try { localStorage.setItem('vobaca-liga', JSON.stringify(LG)); } catch (e) {} }
+  if (M.tags) { TAGS = M.tags; try { localStorage.setItem('vobaca-tags', JSON.stringify(TAGS)); } catch (e) {} }
   try { localStorage.setItem('vobaca-games', JSON.stringify(GAMES)); } catch (e) {}
   try { localStorage.setItem('vobaca-col', JSON.stringify(COL)); } catch (e) {}
   const i = decks.findIndex(d => d.id === curId);
@@ -3826,7 +3895,7 @@ async function syncNow() {
   syncing = true; clearTimeout(syncTimer); paintSync('Sincronizando…');
   try {
     if (!SY.gist) SY.gist = await findGist();
-    let R = { decks: [], del: {}, tr: {}, lay: {}, col: {}, games: {}, liga: {} }, exists = false;
+    let R = { decks: [], del: {}, tr: {}, lay: {}, col: {}, games: {}, liga: {}, tags: { list: [], t: 0 } }, exists = false;
     if (SY.gist) {
       try {
         const g = await gh('/gists/' + SY.gist), f = g.files && g.files[SYNC_FILE];

@@ -33,7 +33,12 @@
           : '<span style="color:#b00">Este marcador no sabe dónde está tu herramienta. Instala el marcador desde tu web de Vobaca Proxies.</span><div style="display:flex;justify-content:flex-end">' + closeBtn + '</div>'));
     });
   }
+  // Idioma: el que manda la herramienta (payload.ui); si no, el del navegador
+  var EN = false;
+  var T_EN = [["Este marcador no sabe dónde está tu herramienta. Instala el marcador desde tu web de Vobaca Proxies.", "This bookmarklet doesn't know where your tool is. Install the bookmarklet from your Vobaca Proxies site."], ["Usa el marcador en la web oficial de Vobaca (takaratomy.co.jp).", "Use the bookmarklet on the official Vobaca site (takaratomy.co.jp)."], ["Preparando la imagen del mazo…", "Preparing the deck image…"], ["Imagen del mazo", "Deck image"], [" imágenes no se han podido cargar.", " images could not be loaded."], ["Mantén pulsada la imagen para guardarla, o usa los botones.", "Long-press the image to save it, or use the buttons."], [">Compartir<", ">Share<"], [">Descargar<", ">Download<"], [">Cerrar<", ">Close<"], [">Copiar<", ">Copy<"], [">Entendido<", ">Got it<"], ["Cargando el mazo en el constructor oficial…", "Loading the deck into the official builder…"], ["Tarda unos segundos.", "It takes a few seconds."], ["Mazo cargado en el constructor oficial", "Deck loaded into the official builder"], [" cartas · ", " cards · "], [" eventos", " events"], ["no encontradas: ", "not found: "], ["Revisa el mazo y pulsa el botón de guardar de la web (", "Check the deck and press the site's save button ("], ["). Te dará el ", "). It will give you the "], ["código oficial</b> del mazo.", "official code</b> of the deck."], ["La web oficial solo deja guardar mazos de <b>40 cartas</b> con <b>8 eventos como máximo</b>. Ajusta el mazo aquí mismo o en Vobaca Proxies antes de guardar.", "The official site only saves decks of <b>40 cards</b> with <b>at most 8 events</b>. Adjust the deck here or in Vobaca Proxies before saving."], ["Opcional: en «デッキ情報を追加» puedes poner autor y etiquetas. Marca «デッキ検索に掲載する» solo si quieres que salga en la búsqueda pública.", "Optional: in «デッキ情報を追加» you can add an author and tags. Tick «デッキ検索に掲載する» only if you want it to appear in the public search."], ["No se ha podido cargar el mazo en el constructor: ", "Couldn't load the deck into the builder: "], ["no se encuentra el constructor", "the builder can't be found"], ["Buscando cartas nuevas en la web oficial…", "Looking for new cards on the official site…"], ["No hay cartas nuevas", "No new cards"], ["Tu herramienta ya tiene las ", "Your tool already has all "], [" cartas de la web oficial.", " cards from the official site."], ["Cartas nuevas encontradas", "New cards found"], [" japonesas y ", " Japanese and "], [" inglesas que tu herramienta aún no tiene.", " English cards your tool doesn't have yet."], ["Pulsa «Abrir en Vobaca Proxies» para añadirlas.", "Press «Open in Vobaca Proxies» to add them."], ["Descargando los mazos públicos…", "Downloading the public decks…"], [" mazos públicos descargados", " public decks downloaded"], ["Pulsa «Abrir en Vobaca Proxies» para verlos, filtrarlos e importarlos.", "Press «Open in Vobaca Proxies» to see, filter and import them."], ["Código de mazo oficial de Vobaca", "Official Vobaca deck code"], ["No existe ningún mazo con el código ", "There is no deck with the code "], ["Pulsa «Abrir en Vobaca Proxies» para cargarlo como mazo nuevo, o copia la lista.", "Press «Open in Vobaca Proxies» to load it as a new deck, or copy the list."], [">Abrir en Vobaca Proxies<", ">Open in Vobaca Proxies<"], ["¡Copiada!", "Copied!"], ["Selecciónala y cópiala", "Select it and copy it"], ["Este enlace no es de Vobaca Proxies.", "This link is not from Vobaca Proxies."], ["Error: ", "Error: "], [" cartas", " cards"]];
+  var T = function (s2) { if (!EN) return s2; s2 = String(s2); T_EN.forEach(function (p) { s2 = s2.split(p[0]).join(p[1]); }); return s2; };
   function box(inner) {
+    inner = T(inner);
     var old = document.getElementById('vbx'); if (old) old.remove();
     var d = document.createElement('div'); d.id = 'vbx';
     d.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px;font:16px/1.4 system-ui,sans-serif';
@@ -45,11 +50,12 @@
   var closeBtn = '<button data-close style="' + B2 + '">Cerrar</button>';
   function fail(msg) { box('<b>Vobaca Proxies</b><span>' + esc(msg) + '</span><div style="display:flex;justify-content:flex-end">' + closeBtn + '</div>'); }
 
-  if (!/takaratomy\.co\.jp$/.test(location.hostname)) { alert('Usa el marcador en la web oficial de Vobaca (takaratomy.co.jp).'); return; }
+  if (!/takaratomy\.co\.jp$/.test(location.hostname)) { alert(/^es/i.test(navigator.language || 'es') ? 'Usa el marcador en la web oficial de Vobaca (takaratomy.co.jp).' : 'Use the bookmarklet on the official Vobaca site (takaratomy.co.jp).'); return; }
 
   var payload = null;
   var hm = location.hash.match(/vobaca=([A-Za-z0-9_-]+)/);
   if (hm) { try { payload = JSON.parse(unb64u(hm[1])); } catch (e) { payload = null; } }
+  EN = payload && payload.ui ? payload.ui === 'en' : !/^es/i.test(navigator.language || 'es');
 
   // ---------- Todas las cartas japonesas (para el constructor) ----------
   function allCards() {
@@ -213,7 +219,7 @@
 
   // ---------- Modo 1: mazo oficial → Vobaca Proxies ----------
   function importOfficial() {
-    var k = (location.search.match(/deck_key=([A-Za-z0-9]+)/) || [])[1] || prompt('Código de mazo oficial de Vobaca');
+    var k = (location.search.match(/deck_key=([A-Za-z0-9]+)/) || [])[1] || prompt(T('Código de mazo oficial de Vobaca'));
     if (!k) return;
     k = ((k.match(/deck_key=([A-Za-z0-9]+)/) || [])[1] || k).trim();
     return fetch(BASE + 'deck/get_deck.php?deck_key=' + encodeURIComponent(k)).then(function (r) { return r.json(); }).then(function (j) {
@@ -234,9 +240,9 @@
       if (HOME) d.querySelector('#vbo').href = HOME + '#vbimp=' + b64u(t);
       d.querySelector('#vbc').onclick = function () {
         var msg = d.querySelector('#vbm');
-        (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { msg.textContent = '¡Copiada!'; }, function () {
+        (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { msg.textContent = T('¡Copiada!'); }, function () {
           ta.focus(); ta.select(); ta.setSelectionRange(0, t.length);
-          try { document.execCommand('copy'); msg.textContent = '¡Copiada!'; } catch (e) { msg.textContent = 'Selecciónala y cópiala'; }
+          try { document.execCommand('copy'); msg.textContent = T('¡Copiada!'); } catch (e) { msg.textContent = T('Selecciónala y cópiala'); }
         });
       };
     });

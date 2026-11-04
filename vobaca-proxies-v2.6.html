@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- Vobaca Proxies v2.6 · estadísticas del meta · comparar mazos · registro de partidas · notas por mazo -->
+<!-- Vobaca Proxies v2.7 · botones del mazo reorganizados por grupos -->
 <title>Vobaca Proxies</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#1b2330">
@@ -114,7 +114,7 @@ main{padding:12px max(12px,env(safe-area-inset-left,0px))}
 .dk-pick{display:grid;gap:3px;font-size:13px;color:var(--muted);flex:1;min-width:160px}
 .dk-pick select,.dk-name{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
 .dk-name{font:600 18px var(--body)}
-.dk-acts{display:flex;gap:6px}
+.dk-acts{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;flex:1 1 260px}
 .dk-acts .btn{padding:9px 10px;font-size:14px}
 .dk-sum{display:flex;gap:14px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
 .dk-total{font:700 44px/1 var(--display);font-variant-numeric:tabular-nums;white-space:nowrap}
@@ -138,8 +138,13 @@ main{padding:12px max(12px,env(safe-area-inset-left,0px))}
 .dk-qty button{width:32px;height:32px;border-radius:16px;border:1px solid var(--line);background:var(--panel);font-size:18px;cursor:pointer}
 .dk-qty span{min-width:20px;text-align:center;font:700 18px var(--display);font-variant-numeric:tabular-nums}
 .dk-empty{color:var(--muted);text-align:center;padding:24px 0}
-.dk-foot{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
-.dk-foot #dkClear{margin-right:auto}
+.dk-foot{display:grid;grid-template-columns:1fr;gap:10px;margin-top:6px}
+@media (min-width:720px){.dk-foot{grid-template-columns:1fr 1fr}}
+.dk-grp{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:10px 12px}
+.dk-grp h3{margin:0 0 8px;font:700 13px/1 var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.dk-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.dk-btns .btn{width:100%;padding:10px 8px;font-size:14px}
+.dk-btns .btn.dk-danger{color:#c0392b;border-color:rgba(192,57,43,.45)}
 .dk-mv{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .dk-mv .linkbtn{margin:0;font-size:13px}
 .dk-group.maybe{border:1px dashed var(--line);border-radius:12px;padding:4px 12px 8px;background:var(--panel)}
@@ -244,8 +249,7 @@ dialog textarea{width:100%;min-height:220px;border:1px solid var(--line);border-
 .pt-prob select{flex:1;min-width:0}
 .pt-tab{border-collapse:collapse;width:100%;table-layout:fixed}
 .pt-tab td:last-child{width:76px}
-.dk-top{flex-wrap:wrap}
-.dk-acts{flex-wrap:wrap}
+
 .pt-tab td{padding:5px 8px;border-top:1px solid var(--line);font-size:14px}
 .pt-tab td:last-child{text-align:right;font-weight:700;white-space:nowrap}
 .toast{position:fixed;left:50%;bottom:86px;transform:translate(-50%,20px);background:#1b2330;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;max-width:calc(100vw - 32px);opacity:0;pointer-events:none;transition:.25s;z-index:50;box-shadow:0 6px 20px rgba(0,0,0,.25)}
@@ -310,7 +314,7 @@ dialog textarea{width:100%;min-height:220px;border:1px solid var(--line);border-
 <body>
 <header>
   <div class="top">
-    <h1>Vobaca <span>Proxies</span> <small class="ver" title="Versión de la herramienta">v2.6</small></h1>
+    <h1>Vobaca <span>Proxies</span> <small class="ver" title="Versión de la herramienta">v2.7</small></h1>
     <div class="topr">
       <div class="seg" role="group" aria-label="Idioma de las cartas">
         <button type="button" id="langJP" aria-pressed="true">JP</button><button type="button" id="langEN" aria-pressed="false">EN</button>
@@ -355,10 +359,9 @@ dialog textarea{width:100%;min-height:220px;border:1px solid var(--line);border-
   <div class="dk-top">
     <label class="dk-pick">Mazo<select id="dkSel"></select></label>
     <div class="dk-acts">
-      <button class="btn ghost" id="dkNew" type="button">Nuevo</button>
+      <button class="btn ghost" id="dkNew" type="button">+ Nuevo</button>
       <button class="btn ghost" id="dkDup" type="button">Duplicar</button>
       <button class="btn ghost" id="dkDel" type="button">Borrar</button>
-      <button class="btn ghost" id="dkPub" type="button">Mazos públicos</button>
     </div>
   </div>
   <input id="dkName" class="dk-name" placeholder="Nombre del mazo" maxlength="60" autocomplete="off">
@@ -369,15 +372,36 @@ dialog textarea{width:100%;min-height:220px;border:1px solid var(--line);border-
   <div class="dk-counts" id="dkCounts"></div>
   <div id="dkList"></div>
   <div class="dk-foot">
-    <button class="btn ghost" id="dkClear" type="button">Vaciar mazo</button>
-    <button class="btn ghost" id="dkExport" type="button">Lista / importar</button>
-    <button class="btn ghost" id="dkTest" type="button">Probar</button>
-    <button class="btn ghost" id="dkCmp" type="button">Comparar</button>
-    <button class="btn ghost" id="dkLink" type="button">Enlace</button>
-    <button class="btn ghost" id="dkCode" type="button">Código</button>
-    <button class="btn ghost" id="dkOff" type="button">Código oficial</button>
-    <button class="btn" id="dkImg" type="button">Imagen</button>
-    <button class="btn ghost" id="dkBackup" type="button">Copia / sincronizar</button>
+    <div class="dk-grp">
+      <h3>Jugar</h3>
+      <div class="dk-btns">
+        <button class="btn ghost" id="dkTest" type="button">Probar mano</button>
+        <button class="btn ghost" id="dkCmp" type="button">Comparar</button>
+      </div>
+    </div>
+    <div class="dk-grp">
+      <h3>Compartir</h3>
+      <div class="dk-btns">
+        <button class="btn" id="dkImg" type="button">Imagen</button>
+        <button class="btn ghost" id="dkLink" type="button">Enlace</button>
+        <button class="btn ghost" id="dkCode" type="button">Código</button>
+        <button class="btn ghost" id="dkOff" type="button">Código oficial</button>
+      </div>
+    </div>
+    <div class="dk-grp">
+      <h3>Traer mazos</h3>
+      <div class="dk-btns">
+        <button class="btn ghost" id="dkPub" type="button">Mazos públicos</button>
+        <button class="btn ghost" id="dkExport" type="button">Lista / importar</button>
+      </div>
+    </div>
+    <div class="dk-grp">
+      <h3>Datos</h3>
+      <div class="dk-btns">
+        <button class="btn ghost" id="dkBackup" type="button">Copia / sincronizar</button>
+        <button class="btn ghost dk-danger" id="dkClear" type="button">Vaciar mazo</button>
+      </div>
+    </div>
   </div>
   <div class="dk-extra">
     <details id="dkGamesBox">
@@ -2087,7 +2111,7 @@ $('dkCode').onclick = async () => {
 $('dkImg').onclick = () => makeDeckImage();
 
 // ---- Copia de seguridad (todos los datos de este dispositivo) ----
-const APP_VERSION = '2.6';
+const APP_VERSION = '2.7';
 const BK_KEYS = ['vobaca-decks', 'vobaca-tr', 'vobaca-lang', 'vobaca-ovl', 'vobaca-incmaybe', 'vobaca-lay', 'vobaca-trlang', 'vobaca-col', 'vobaca-onlymiss', 'vobaca-extra', 'vobaca-games'];
 function buildBackup() {
   save(); saveTR(); saveLAY();

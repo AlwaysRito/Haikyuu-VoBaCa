@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- Vobaca Proxies v3.2 · guardar el mazo y versiones · cartas relacionadas · mano inicial por roles · aviso de versión nueva -->
+<!-- Vobaca Proxies v3.4 · interfaz en español o en inglés -->
 <title>Vobaca Proxies</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#1b2330">
@@ -419,6 +419,36 @@ dialog.mt-dlg{width:min(720px,calc(100vw - 16px));max-height:calc(100dvh - 16px)
 .upd-bar{position:fixed;top:0;left:0;right:0;z-index:60;background:#1b2330;color:#fff;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;padding:8px 12px;font-size:14px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
 .upd-bar .btn{padding:6px 12px;min-height:0}
 .upd-bar .x{background:none;border:0;color:#9aa5b4;font-size:18px;cursor:pointer}
+.sg-row{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:10px;align-items:center;border-top:1px solid var(--line);padding:6px 0}
+.sg-row img{width:40px;aspect-ratio:63/88;object-fit:cover;border-radius:4px;background:var(--line);display:block;cursor:pointer}
+.sg-row b{display:block;font-size:14px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sg-row small{display:block;font-size:12px;color:var(--muted);line-height:1.35}
+.sg-row .btn{padding:6px 12px;min-height:0}
+.sr-list{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 0}
+.sr-chip{display:inline-flex;align-items:center;gap:2px;border:1px solid var(--line);border-radius:999px;padding:2px 4px 2px 10px;background:var(--panel);font-size:13px}
+.sr-x{border:0;background:none;color:var(--muted);cursor:pointer;font-size:12px;padding:2px 4px}
+.t-match{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) 56px;gap:8px;align-items:center;border-top:1px solid var(--line);padding:8px 0}
+.t-match .btn{white-space:normal;line-height:1.15;padding:8px 6px;min-width:0}
+.t-match .btn.on{background:#1e8e3e;color:#fff;border-color:#1e8e3e}
+.t-match .vs{color:var(--muted);font-size:12px}
+.t-sets{width:100%;box-sizing:border-box;padding:6px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:13px;text-align:center;background:var(--bg);color:var(--fg)}
+.t-form{display:grid;gap:8px}
+.t-form label{display:grid;gap:4px;font-size:14px}
+.t-players{display:grid;gap:4px;font-size:14px}
+.t-players label{display:flex;gap:6px;align-items:center}
+#tTable{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}
+#tTable th{font-size:12px;color:var(--muted);text-align:left;padding:4px 6px}
+#tTable td{border-top:1px solid var(--line);padding:6px}
+#tTable .n{text-align:right}
+#tTable tr.me td{font-weight:700}
+.tour{position:fixed;left:12px;right:12px;bottom:92px;z-index:70;max-width:440px;margin:0 auto;background:#1b2330;color:#fff;border-radius:14px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.tour small{color:#9aa5b4}
+.tour b{display:block;font:700 18px var(--display);margin:2px 0 4px}
+.tour p{margin:0 0 10px;font-size:14px;line-height:1.45;color:#dfe4ea}
+.tour .row2{display:flex;gap:8px;justify-content:flex-end;align-items:center}
+.tour .row2 .linkbtn{color:#9aa5b4;margin-right:auto}
+.tour .btn.ghost{color:#fff;border-color:#4a5568;background:transparent}
+.tour-hl{outline:3px solid var(--accent)!important;outline-offset:3px;border-radius:8px;position:relative;z-index:2}
 .dk-foot .syerr{border-color:#c0392b;color:#c0392b}
 .hint{max-width:60ch;color:var(--muted);font-size:14px;text-align:center;margin:0}
 
@@ -434,14 +464,17 @@ dialog.mt-dlg{width:min(720px,calc(100vw - 16px));max-height:calc(100dvh - 16px)
 </style>
 </head>
 <body>
+<div class="tour" id="tour" hidden role="dialog" aria-live="polite"><small id="tourStep"></small><b id="tourTitle"></b><p id="tourTxt"></p>
+  <div class="row2"><button class="linkbtn" id="tourSkip" type="button">Saltar</button><button class="btn ghost" id="tourPrev" type="button">Anterior</button><button class="btn" id="tourNext" type="button">Siguiente</button></div></div>
 <div class="upd-bar" id="updBar" hidden><span id="updTxt"></span><button class="btn" id="updGo" type="button">Actualizar</button><button class="x" id="updX" type="button" aria-label="Cerrar">✕</button></div>
 <header>
   <div class="top">
-    <h1>Vobaca <span>Proxies</span> <small class="ver" title="Versión de la herramienta">v3.2</small></h1>
+    <h1>Vobaca <span>Proxies</span> <small class="ver" title="Versión de la herramienta">v3.4</small></h1>
     <div class="topr">
       <div class="seg" role="group" aria-label="Idioma de las cartas">
         <button type="button" id="langJP" aria-pressed="true">JP</button><button type="button" id="langEN" aria-pressed="false">EN</button>
       </div>
+      <button class="btn ghost" id="uiBtn" type="button" title="Idioma de la interfaz · Interface language">🌐 ES</button>
       <button class="btn ghost" id="glBtn" type="button" title="Guía de palabras clave">Guía</button>
       <button class="btn ghost" id="listBtn" type="button">Lista</button>
     </div>
@@ -458,7 +491,9 @@ dialog.mt-dlg{width:min(720px,calc(100vw - 16px));max-height:calc(100dvh - 16px)
     <label><input type="checkbox" id="onlySel"> Solo elegidas</label>
     <label>Mi colección <select id="fCol" class="mini"><option value="">Todas</option><option value="have">Las que tengo</option><option value="miss">Las que no tengo</option></select></label>
     <button type="button" class="linkbtn" id="advBtn" aria-expanded="false" aria-controls="adv">Filtros</button>
+    <button type="button" class="linkbtn" id="srchSave">Guardar búsqueda</button>
   </div>
+  <div class="sr-list" id="srchList" hidden></div>
   <div class="adv" id="adv" hidden>
     <div class="advgrid">
       <label>Instituto<select id="fAff"></select></label>
@@ -539,10 +574,14 @@ dialog.mt-dlg{width:min(720px,calc(100vw - 16px));max-height:calc(100dvh - 16px)
       <summary>Estadísticas <small id="dkStatsSum"></small></summary>
       <div id="dkStats"></div>
     </details>
+    <details id="dkSugBox">
+      <summary>Sugerencias <small id="dkSugSum"></small></summary>
+      <div id="dkSug"></div>
+    </details>
     <details id="dkGamesBox">
       <summary>Partidas <small id="dkGamesSum"></small></summary>
       <div class="gm-sum" id="gmSum"></div>
-      <div class="lg-row"><button class="btn" id="gmAdd" type="button">Apuntar partida</button><button class="btn ghost" id="gmLiga" type="button">Liga con amigos</button></div>
+      <div class="lg-row"><button class="btn" id="gmAdd" type="button">Apuntar partida</button><button class="btn ghost" id="gmLiga" type="button">Liga con amigos</button><button class="btn ghost" id="gmTourn" type="button">Torneo</button></div>
       <div class="gm-list" id="gmList"></div>
     </details>
     <details id="dkNotesBox">
@@ -582,6 +621,7 @@ dialog.mt-dlg{width:min(720px,calc(100vw - 16px));max-height:calc(100dvh - 16px)
       <div class="iann" id="iAnn"></div>
       <p class="irole" id="iRole" hidden></p>
       <p class="imeta-pub" id="iMetaPub" hidden></p>
+      <p class="imeta-pub" id="iWith" hidden></p>
       <div class="irel" id="iRel" hidden></div>
       <details class="ien" id="iEnBox"><summary>Texto oficial en inglés</summary><div class="iskill" id="iEnSkill"></div><div class="iann" id="iEnAnn"></div></details>
       <div class="trbox" id="iTrBox">
@@ -686,6 +726,30 @@ dialog.mt-dlg{width:min(720px,calc(100vw - 16px));max-height:calc(100dvh - 16px)
   </div>
 </dialog>
 
+<dialog id="tDlg" class="imgdlg">
+  <h2>Torneo</h2>
+  <div id="tNew" class="t-form">
+    <p class="bk-sum">Organiza un torneo con tus amigos de la liga y con invitados. La herramienta hace los emparejamientos de cada ronda y lleva la clasificación.</p>
+    <label>Nombre<input id="tName" maxlength="40" placeholder="Torneo de los viernes" autocomplete="off"></label>
+    <label>Formato<select id="tFmt"><option value="swiss">Rondas suizas (todos juegan todas las rondas)</option><option value="ko">Eliminatoria (quien pierde, queda fuera)</option></select></label>
+    <label id="tRoundsWrap">Número de rondas<input id="tRounds" type="number" min="1" max="9" value="3"></label>
+    <div><p class="rel-h">Jugadores</p><div class="t-players" id="tPlayers"></div>
+      <div class="lg-row" style="margin-top:6px"><input id="tGuest" maxlength="24" placeholder="Añadir invitado" autocomplete="off"><button class="btn ghost" id="tGuestAdd" type="button">Añadir</button></div></div>
+    <button class="btn" id="tStart" type="button">Empezar el torneo</button>
+    <div id="tPast"></div>
+  </div>
+  <div id="tCur" hidden>
+    <p class="bk-sum" id="tTitle"></p>
+    <p class="rel-h" id="tRound"></p>
+    <div id="tMatches"></div>
+    <label style="font-size:13px;display:flex;gap:6px;align-items:center;margin-top:6px"><input type="checkbox" id="tLog" checked> Apuntar mis partidas también en el mazo abierto</label>
+    <div class="lg-row" style="margin-top:8px"><button class="btn" id="tNext" type="button" hidden>Siguiente ronda</button><button class="btn" id="tFinish" type="button" hidden>Terminar el torneo</button></div>
+    <p class="rel-h" style="margin-top:12px">Clasificación</p>
+    <table id="tTable"></table>
+  </div>
+  <div class="row"><span class="msg" id="tMsg"></span><button class="btn ghost" id="tCancel" type="button">Cancelar torneo</button><button class="btn" id="tClose" type="button">Cerrar</button></div>
+</dialog>
+
 <dialog id="vsDlg" class="imgdlg">
   <h2>Versiones guardadas</h2>
   <p class="bk-sum">Cada vez que pulsas «Guardar» se guarda una versión del mazo. Lo que cambias se sigue guardando solo como borrador, así que no pierdes nada aunque se cierre la app.</p>
@@ -754,6 +818,7 @@ dialog.mt-dlg{width:min(720px,calc(100vw - 16px));max-height:calc(100dvh - 16px)
     <div class="seg2" role="group" aria-label="Idioma"><button class="btn ghost" id="glES" type="button">Español</button><button class="btn ghost" id="glEN" type="button">English</button></div>
   </div>
   <div id="glList"></div>
+  <p class="st-note"><button class="linkbtn" id="tourBtn" type="button">Ver la guía de primeros pasos de la herramienta</button></p>
   <p class="st-note">Las definiciones salen del texto de las cartas y de las reglas oficiales. En inglés se usa el texto oficial cuando la carta ya ha salido en inglés.</p>
   <div class="row"><span class="msg"></span><button class="btn ghost" id="glClose" type="button">Cerrar</button></div>
 </dialog>
@@ -787,6 +852,7 @@ dialog.mt-dlg{width:min(720px,calc(100vw - 16px));max-height:calc(100dvh - 16px)
   <div class="row">
     <span class="msg" id="lgMsg"></span>
     <button class="btn ghost" id="lgLeave" type="button">Dejar la liga</button>
+    <button class="btn ghost" id="lgTourn" type="button">Torneo</button>
     <button class="btn ghost" id="lgRefresh" type="button">Actualizar</button>
     <button class="btn" id="lgClose" type="button">Cerrar</button>
   </div>
@@ -1964,6 +2030,7 @@ function openInfo(id) {
   paintInfoMeta(c);
   paintInfoRole(c);
   paintRelated(c);
+  paintGoesWith(c);
   paintInfo();
   const d = $('info'); d.showModal ? d.showModal() : d.setAttribute('open', '');
 }
@@ -2383,8 +2450,8 @@ $('dkCode').onclick = async () => {
 $('dkImg').onclick = () => makeDeckImage();
 
 // ---- Copia de seguridad (todos los datos de este dispositivo) ----
-const APP_VERSION = '3.2';
-const BK_KEYS = ['vobaca-decks', 'vobaca-tr', 'vobaca-lang', 'vobaca-ovl', 'vobaca-incmaybe', 'vobaca-lay', 'vobaca-trlang', 'vobaca-col', 'vobaca-onlymiss', 'vobaca-extra', 'vobaca-games', 'vobaca-autorole', 'vobaca-useen', 'vobaca-tags'];
+const APP_VERSION = '3.4';
+const BK_KEYS = ['vobaca-decks', 'vobaca-tr', 'vobaca-lang', 'vobaca-ovl', 'vobaca-incmaybe', 'vobaca-lay', 'vobaca-trlang', 'vobaca-col', 'vobaca-onlymiss', 'vobaca-extra', 'vobaca-games', 'vobaca-autorole', 'vobaca-useen', 'vobaca-tags', 'vobaca-searches', 'vobaca-tourn'];
 function buildBackup() {
   save(); saveTR(); saveLAY();
   const data = {};
@@ -2775,12 +2842,12 @@ function officialPayload(a) {
   const valid = st.total === 40 && st.ev <= 8;
   const secs = [['Personajes', 0, rowsC], ['Eventos', 0, rowsE], ['Maybeboard', 1, rowsM]].filter(x => x[2].length).map(([t, m, rows]) => {
     const n = rows.reduce((s2, r) => s2 + r.n, 0);
-    return [t, m, `${n} ${n === 1 ? 'carta' : 'cartas'}${m ? ' · no cuentan para el mazo' : ''}`,
-      rows.map(r => [r.id, r.n, r.c.en || r.c.jp, (r.role === null ? '' : ROLE_ES[r.role]) || r.c.no.replace('HV-', '')])];
+    return [trText(t), m, trText(`${n} ${n === 1 ? 'carta' : 'cartas'}${m ? ' · no cuentan para el mazo' : ''}`),
+      rows.map(r => [r.id, r.n, r.c.en || r.c.jp, (r.role === null ? '' : trText(ROLE_ES[r.role])) || r.c.no.replace('HV-', '')])];
   });
   return { v: 1, a, name, secs,
-    st: `${st.total} cartas · ${st.ch} personajes · ${st.ev} eventos${valid ? ' · válido' : ''}${rowsM.length ? ` · Maybe: ${maybeItems().length}` : ''}`,
-    rl: ROLES.map(([k, es]) => `${es} ${st.rc[k] || 0}`).join('   ') };
+    st: trText(`${st.total} cartas · ${st.ch} personajes · ${st.ev} eventos${valid ? ' · válido' : ''}${rowsM.length ? ` · Maybe: ${maybeItems().length}` : ''}`),
+    rl: ROLES.map(([k, es]) => `${trText(es)} ${st.rc[k] || 0}`).join('   ') };
 }
 const OFF_TXT = {
   img: ['Imagen con las cartas reales', 'Las imágenes de las cartas solo se pueden dibujar desde la web oficial, así que la imagen se hace allí con tu marcador.', 'Saldrá la imagen del mazo: descárgala, compártela o mantenla pulsada para guardarla.'],
@@ -3071,6 +3138,7 @@ const gamesOf = id => Object.entries(GAMES).filter(([, g]) => g.deck === id && !
 const pctTxt = (w, n) => n ? Math.round(w / n * 100) + ' %' : '–';
 function renderDeckExtra() {
   if (!decks[cur]) return;
+  if ($('dkSugBox').open) renderSuggest();
   paintSaveState();
   paintDeckMeta();
   renderDeckStats();
@@ -4013,6 +4081,259 @@ $('updX').onclick = () => { $('updBar').hidden = true; };
 setTimeout(checkUpdate, 1500);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkUpdate(); });
 
+// ---- Sugerencias de cartas (según los mazos públicos parecidos al tuyo) ----
+function pubDeckNos(m) { const s2 = {}; m.d[7].forEach(([k, n]) => { const no = noOfKey(k); s2[no] = (s2[no] || 0) + n; }); return s2; }
+function similarDecks(mine, k = 25) {
+  if (!PUB || !PUB.decks) return [];
+  if (!pubMeta) pubPrep();
+  const S = new Set(Object.keys(mine)); if (!S.size) return [];
+  return pubMeta.map(m => { const D = pubDeckNos(m), keys = Object.keys(D); const inter = keys.filter(x => S.has(x)).length; return { m, D, sim: inter / (S.size + keys.length - inter) }; })
+    .filter(x => x.sim > 0).sort((a, b) => b.sim - a.sim).slice(0, k);
+}
+function renderSuggest() {
+  const box = $('dkSug');
+  if (!PUB || !PUB.decks) { box.innerHTML = '<p class="st-note">Descarga los mazos públicos (Traer mazos → Mazos públicos) para ver sugerencias.</p>'; $('dkSugSum').textContent = ''; return; }
+  const mine = deckCounts(decks[cur]);
+  if (!Object.keys(mine).length) { box.innerHTML = '<p class="st-note">Añade algunas cartas para ver qué suele acompañarlas.</p>'; $('dkSugSum').textContent = ''; return; }
+  const sim = similarDecks(mine);
+  if (!sim.length) { box.innerHTML = '<p class="st-note">Ningún mazo público se parece a este todavía.</p>'; $('dkSugSum').textContent = ''; return; }
+  const W = sim.reduce((t, x) => t + x.sim, 0), score = {}, copies = {}, cnt = {};
+  sim.forEach(({ D, sim: w }) => Object.entries(D).forEach(([no, n]) => { score[no] = (score[no] || 0) + w; copies[no] = (copies[no] || 0) + n; cnt[no] = (cnt[no] || 0) + 1; }));
+  const add = Object.keys(score).filter(no => !mine[no]).sort((a, b) => score[b] - score[a]).slice(0, 12);
+  const rare = Object.keys(mine).filter(no => (score[no] || 0) / W < 0.15).sort((a, b) => (score[a] || 0) - (score[b] || 0)).slice(0, 6);
+  const row = (no, extra) => {
+    const id = BASE_OF[no] || (CARDS.find(c => c.no === no) || {}).id, c = BY_ID[id];
+    return `<div class="sg-row" data-id="${id || ''}"><img alt="" loading="lazy" ${id ? `src="${imgOf(id)}"` : ''}><div><b>${esc(c ? (c.en || c.jp) : no)} <small style="display:inline">${no.replace('HV-', '')}</small></b><small>${extra}</small></div>${extra.startsWith('en ') && id ? '<button class="btn ghost" type="button" data-add>+1</button>' : ''}</div>`;
+  };
+  box.innerHTML = `<p class="st-note">Comparado con los ${sim.length} mazos públicos que más se parecen al tuyo.</p>
+    <p class="rel-h">Suelen llevar también</p>${add.map(no => row(no, `en ${cnt[no]} de ${sim.length} mazos parecidos (${Math.round(score[no] / W * 100)} %) · normalmente ${fmtAvg(copies[no] / cnt[no])}${owned(no) ? ' · tienes ' + owned(no) : ''}`)).join('') || '<p class="st-note">Nada nuevo que sugerir.</p>'}
+    ${rare.length ? `<p class="rel-h">Poco habituales en mazos parecidos</p>${rare.map(no => row(no, `${Math.round((score[no] || 0) / W * 100)} % de los mazos parecidos la llevan · tú llevas ${mine[no]}`)).join('')}` : ''}`;
+  box.querySelectorAll('.sg-row').forEach(r => {
+    const id = r.dataset.id; if (!id) return;
+    r.querySelector('img').onclick = () => openInfo(id);
+    r.querySelector('b').onclick = () => openInfo(id);
+    const b = r.querySelector('[data-add]'); if (b) b.onclick = () => { change(id, +1); toast(`Añadida: ${BY_ID[id].en || BY_ID[id].jp}`); };
+  });
+  $('dkSugSum').textContent = `${add.length} ideas`;
+}
+// En la ficha: con qué cartas suele ir
+function paintGoesWith(c) {
+  const el = $('iWith');
+  if (!PUB || !PUB.decks || !c) { el.hidden = true; return; }
+  if (!pubMeta) pubPrep();
+  const with_ = pubMeta.filter(m => m.d[7].some(([k]) => noOfKey(k) === c.no));
+  if (with_.length < 3) { el.hidden = true; return; }
+  const cnt = {}; with_.forEach(m => Object.keys(pubDeckNos(m)).forEach(no => { if (no !== c.no) cnt[no] = (cnt[no] || 0) + 1; }));
+  const top = Object.entries(cnt).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  el.innerHTML = 'Suele ir con: ' + top.map(([no, n]) => { const x = JP_BASE[no]; return `<button type="button" class="linkbtn" data-id="${x ? x.id : ''}">${esc(x ? (x.en || x.jp) : no)} (${no.replace('HV-', '')})</button> ${Math.round(n / with_.length * 100)} %`; }).join(' · ');
+  el.querySelectorAll('[data-id]').forEach(b => b.onclick = () => b.dataset.id && openInfo(b.dataset.id));
+  el.hidden = false;
+}
+
+// ---- Búsquedas guardadas ----
+let SRCH = { list: [], t: 0 };
+try { SRCH = JSON.parse(localStorage.getItem('vobaca-searches') || 'null') || SRCH; } catch (e) {}
+const SRCH_IDS = ['q', 'set', 'ver', 'fCol', ...ADV_IDS];
+const saveSRCH = () => { SRCH.t = Date.now(); try { localStorage.setItem('vobaca-searches', JSON.stringify(SRCH)); } catch (e) {} syncSoon(); };
+function paintSearches() {
+  const box = $('srchList');
+  box.innerHTML = (SRCH.list || []).map((x, i) => `<span class="sr-chip"><button type="button" class="linkbtn" data-i="${i}">${esc(x.name)}</button><button type="button" class="sr-x" data-x="${i}" aria-label="Borrar búsqueda">✕</button></span>`).join('');
+  box.hidden = !(SRCH.list || []).length;
+  box.querySelectorAll('[data-i]').forEach(b => b.onclick = () => applySearch(SRCH.list[+b.dataset.i]));
+  box.querySelectorAll('[data-x]').forEach(b => b.onclick = () => { const x = SRCH.list[+b.dataset.x]; if (!confirm(`¿Borrar la búsqueda «${x.name}»?`)) return; SRCH.list.splice(+b.dataset.x, 1); saveSRCH(); paintSearches(); });
+}
+function applySearch(x) {
+  if (x.lang && x.lang !== LANG) setLang(x.lang);
+  SRCH_IDS.forEach(id => { if ($(id)) $(id).value = x.v[id] != null ? x.v[id] : ''; });
+  if (x.v.ver == null) $('ver').value = 'normal';
+  ['inSkill', 'onlySel'].forEach(id => { if (x.c && id in x.c) $(id).checked = x.c[id]; });
+  const adv = ADV_IDS.some(id => $(id).value !== ''); $('adv').hidden = !adv; $('advBtn').setAttribute('aria-expanded', String(adv));
+  limit = 120; renderGrid(); toast(`Búsqueda «${x.name}»`);
+}
+$('srchSave').onclick = () => {
+  const v = {}; SRCH_IDS.forEach(id => { if ($(id) && $(id).value !== '') v[id] = $(id).value; });
+  if (!Object.keys(v).filter(k => !(k === 'ver' && v[k] === 'normal')).length) { toast('Primero escribe algo en el buscador o elige algún filtro.'); return; }
+  const n = (prompt('Nombre para esta búsqueda (por ejemplo: «Receptores de Nekoma»):') || '').trim().slice(0, 30); if (!n) return;
+  SRCH.list = [...(SRCH.list || []).filter(x => x.name !== n), { name: n, lang: LANG, v, c: { inSkill: $('inSkill').checked, onlySel: $('onlySel').checked } }];
+  saveSRCH(); paintSearches(); toast(`Búsqueda «${n}» guardada.`);
+};
+paintSearches();
+
+// ---- Torneos entre amigos ----
+// TOURN: { list: [ { id, name, fmt: 'swiss'|'ko', nr, players: [{ id, name }], rounds: [[{ a, b, w, sets }]], done, t } ], t }
+let TOURN = { list: [], t: 0 };
+try { TOURN = JSON.parse(localStorage.getItem('vobaca-tourn') || 'null') || TOURN; } catch (e) {}
+const saveTOURN = () => { TOURN.t = Date.now(); try { localStorage.setItem('vobaca-tourn', JSON.stringify(TOURN)); } catch (e) {} syncSoon(); ligaSoon(); };
+const activeT = () => (TOURN.list || []).find(t => !t.done) || null;
+const ME_ID = () => LG.gist || 'me';
+function tStand(t) {
+  const st = {}; t.players.forEach(p => st[p.id] = { p, w: 0, l: 0, opp: [], bye: 0 });
+  t.rounds.forEach(r => r.forEach(m => {
+    if (!m.b) { if (st[m.a]) { st[m.a].w++; st[m.a].bye++; } return; }
+    if (!m.w) return;
+    const L = m.w === m.a ? m.b : m.a;
+    if (st[m.w]) st[m.w].w++; if (st[L]) st[L].l++;
+    if (st[m.a]) st[m.a].opp.push(m.b); if (st[m.b]) st[m.b].opp.push(m.a);
+  }));
+  const arr = Object.values(st);
+  arr.forEach(s2 => { s2.buch = s2.opp.reduce((t2, o) => t2 + (st[o] ? st[o].w : 0), 0); });
+  return arr.sort((a, b) => b.w - a.w || b.buch - a.buch || a.l - b.l);
+}
+function tPairSwiss(t) {
+  const st = tStand(t), played = new Set();
+  t.rounds.forEach(r => r.forEach(m => { if (m.b) { played.add(m.a + '|' + m.b); played.add(m.b + '|' + m.a); } }));
+  const hadBye = new Set(); t.rounds.forEach(r => r.forEach(m => { if (!m.b) hadBye.add(m.a); }));
+  let pool = st.map(s2 => s2.p.id);
+  if (!t.rounds.length) pool = shuffle(pool.slice());
+  // Emparejar por clasificación sin repetir rivales (búsqueda con vuelta atrás); si es imposible, se permite repetir
+  const solve = (left, allowRepeat) => {
+    if (!left.length) return [];
+    const a = left[0];
+    for (let j = 1; j < left.length; j++) {
+      const b = left[j]; if (!allowRepeat && played.has(a + '|' + b)) continue;
+      const rest = solve(left.filter((_, k) => k !== 0 && k !== j), allowRepeat);
+      if (rest) return [{ a, b, w: '' }, ...rest];
+    }
+    return null;
+  };
+  if (!(pool.length % 2)) {
+    // Mirando una ronda por delante: se elige un emparejamiento que deje la siguiente ronda sin repeticiones
+    const left = (t.nr || 1) - t.rounds.length - 1;
+    function* gen(l) {
+      if (!l.length) { yield []; return; }
+      const a = l[0];
+      for (let j = 1; j < l.length; j++) { const b = l[j]; if (played.has(a + '|' + b)) continue; for (const rest of gen(l.filter((_, k) => k !== 0 && k !== j))) yield [{ a, b, w: '' }, ...rest]; }
+    }
+    let tries = 0;
+    for (const pr of gen(pool)) {
+      if (left <= 0 || ++tries > 2000) return pr;
+      pr.forEach(m => { played.add(m.a + '|' + m.b); played.add(m.b + '|' + m.a); });
+      const ok = !!solve(pool, false);
+      pr.forEach(m => { played.delete(m.a + '|' + m.b); played.delete(m.b + '|' + m.a); });
+      if (ok) return pr;
+    }
+    return solve(pool, false) || solve(pool, true) || [];
+  }
+  // Con número impar, descansa el peor clasificado que aún no haya descansado y con el que el resto se pueda emparejar sin repetir
+  const byeOrder = [...pool].reverse().sort((x, y) => (hadBye.has(x) ? 1 : 0) - (hadBye.has(y) ? 1 : 0));
+  for (const allow of [false, true]) for (const bye of byeOrder) {
+    const pairs = solve(pool.filter(x => x !== bye), allow);
+    if (pairs) return [...pairs, { a: bye, b: '', w: bye }];
+  }
+  return [];
+}
+function tPairKO(t) {
+  if (!t.rounds.length) {
+    const ids = shuffle(t.players.map(p => p.id));
+    let size = 1; while (size < ids.length) size *= 2;
+    const byes = size - ids.length, out = [];
+    for (let i = 0; i < byes; i++) out.push({ a: ids.shift(), b: '', w: '' });
+    while (ids.length) out.push({ a: ids.shift(), b: ids.shift(), w: '' });
+    out.forEach(m => { if (!m.b) m.w = m.a; });
+    return out;
+  }
+  const last = t.rounds[t.rounds.length - 1], win = last.map(m => m.w);
+  const out = []; for (let i = 0; i < win.length; i += 2) out.push({ a: win[i], b: win[i + 1] || '', w: win[i + 1] ? '' : win[i] });
+  return out;
+}
+const tName = (t, id) => (t.players.find(p => p.id === id) || {}).name || '¿?';
+const tRoundDone = r => r.every(m => m.w);
+const tFinished = t => t.fmt === 'ko' ? (t.rounds.length && t.rounds[t.rounds.length - 1].length === 1 && tRoundDone(t.rounds[t.rounds.length - 1])) : (t.rounds.length >= t.nr && tRoundDone(t.rounds[t.rounds.length - 1]));
+function renderTourn() {
+  const t = activeT();
+  $('tNew').hidden = !!t; $('tCur').hidden = !t;
+  if (!t) {
+    const ids = [...new Set([...(LG.members || []), ...Object.keys(LGC)])].filter(id => id !== LG.gist);
+    $('tPlayers').innerHTML = [[ME_ID(), (LG.name || 'Tú') + ' (tú)'], ...ids.map(id => [id, friendName(id)]), ...tGuests.map(g => [g, g.replace(/^g:/, '') + ' (invitado)'])]
+      .map(([id, n]) => `<label><input type="checkbox" value="${esc(id)}" checked> ${esc(n)}</label>`).join('');
+    const past = (TOURN.list || []).filter(x => x.done).slice(-5).reverse();
+    $('tPast').innerHTML = past.length ? '<p class="rel-h">Torneos anteriores</p>' + past.map(x => `<div class="gm-row"><span class="gm-res w">🏆</span><div><span>${esc(x.name)}</span><small>ganó ${esc(tName(x, tStand(x)[0].p.id))} · ${x.players.length} jugadores · ${new Date(x.t0 || x.t || Date.now()).toLocaleDateString('es-ES')}</small></div><span></span></div>`).join('') : '';
+    return;
+  }
+  $('tTitle').textContent = `${t.name} · ${t.fmt === 'ko' ? 'eliminatoria' : `rondas suizas (${t.nr})`}`;
+  const ri = t.rounds.length - 1, r = t.rounds[ri];
+  const roundName = t.fmt === 'ko' ? ({ 1: 'Final', 2: 'Semifinales', 4: 'Cuartos de final' }[r.length] || `Ronda ${ri + 1}`) : `Ronda ${ri + 1} de ${t.nr}`;
+  $('tRound').textContent = roundName;
+  $('tMatches').innerHTML = '';
+  r.forEach((m, mi) => {
+    const row = document.createElement('div'); row.className = 't-match';
+    if (!m.b) { row.innerHTML = `<span><b></b> pasa sin jugar</span>`; row.querySelector('b').textContent = tName(t, m.a); $('tMatches').appendChild(row); return; }
+    row.innerHTML = `<button type="button" class="btn ghost" data-w="${esc(m.a)}"></button><span class="vs">contra</span><button type="button" class="btn ghost" data-w="${esc(m.b)}"></button><input class="t-sets" maxlength="5" placeholder="sets">`;
+    const [ba, bb] = row.querySelectorAll('[data-w]'); ba.textContent = tName(t, m.a); bb.textContent = tName(t, m.b);
+    [ba, bb].forEach(btn => { btn.classList.toggle('on', m.w === btn.dataset.w); btn.onclick = () => tSetWin(t, ri, mi, m.w === btn.dataset.w ? '' : btn.dataset.w); });
+    const si = row.querySelector('.t-sets'); si.value = m.sets || ''; si.addEventListener('change', () => { m.sets = si.value.trim(); saveTOURN(); });
+    $('tMatches').appendChild(row);
+  });
+  const fin = tFinished(t);
+  $('tNext').hidden = fin || !tRoundDone(r); $('tFinish').hidden = !fin;
+  const st = tStand(t);
+  $('tTable').innerHTML = `<tr><th>#</th><th>Jugador</th><th class="n">V</th><th class="n">D</th>${t.fmt === 'swiss' ? '<th class="n" title="Suma de victorias de tus rivales">Desemp.</th>' : ''}</tr>` + st.map((s2, i) => `<tr${s2.p.id === ME_ID() ? ' class="me"' : ''}><td>${i + 1}</td><td>${esc(s2.p.name)}</td><td class="n">${s2.w}</td><td class="n">${s2.l}</td>${t.fmt === 'swiss' ? `<td class="n">${s2.buch}</td>` : ''}</tr>`).join('');
+  $('tMsg').textContent = fin ? `¡Torneo terminado! Gana ${tName(t, t.fmt === 'ko' ? t.rounds[ri][0].w : st[0].p.id)}.` : tRoundDone(r) ? 'Ronda completa.' : 'Toca el nombre de quien gana cada partida.';
+}
+function tSetWin(t, ri, mi, w) {
+  const m = t.rounds[ri][mi]; m.w = w;
+  // Si juegas tú contra un amigo de la liga, se apunta también en tus partidas (con el mazo abierto)
+  const me = ME_ID();
+  if (w && (m.a === me || m.b === me) && $('tLog').checked) {
+    const other = m.a === me ? m.b : m.a, key = `t-${t.id}-${ri}-${mi}`;
+    GAMES[key] = { deck: decks[cur].id, date: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10), res: w === me ? 'W' : 'L', sets: m.sets || '', opp: '', oppTxt: tName(t, other), note: t.name, friend: /^[0-9a-f]{20,40}$/.test(other) ? other : '', t: Date.now() };
+    saveGAMES();
+  }
+  saveTOURN(); renderTourn();
+}
+let tGuests = [];
+$('tGuestAdd').onclick = () => { const n = $('tGuest').value.trim().slice(0, 24); if (!n) return; tGuests.push('g:' + n); $('tGuest').value = ''; renderTourn(); };
+$('tStart').onclick = () => {
+  const ids = [...$('tPlayers').querySelectorAll('input:checked')].map(i => i.value);
+  if (ids.length < 2) { alert('Hacen falta al menos 2 jugadores.'); return; }
+  const players = ids.map(id => ({ id, name: id === ME_ID() ? (LG.name || 'Tú') : id.startsWith('g:') ? id.slice(2) : friendName(id) }));
+  const fmt = $('tFmt').value, nr = Math.max(1, Math.min(9, +$('tRounds').value || Math.ceil(Math.log2(players.length))));
+  const t = { id: newId(), name: $('tName').value.trim().slice(0, 40) || 'Torneo ' + new Date().toLocaleDateString('es-ES'), fmt, nr, players, rounds: [], done: false, t0: Date.now() };
+  t.rounds.push(fmt === 'ko' ? tPairKO(t) : tPairSwiss(t));
+  TOURN.list = [...(TOURN.list || []), t].slice(-20); tGuests = []; saveTOURN(); renderTourn();
+};
+$('tFmt').onchange = () => { $('tRoundsWrap').hidden = $('tFmt').value === 'ko'; };
+$('tNext').onclick = () => { const t = activeT(); if (!t) return; t.rounds.push(t.fmt === 'ko' ? tPairKO(t) : tPairSwiss(t)); saveTOURN(); renderTourn(); };
+$('tFinish').onclick = () => { const t = activeT(); if (!t) return; t.done = true; t.t = Date.now(); saveTOURN(); renderTourn(); toast('Torneo guardado.'); };
+$('tCancel').onclick = () => { const t = activeT(); if (!t || !confirm('¿Cancelar este torneo? Se borra y no cuenta.')) return; TOURN.list = TOURN.list.filter(x => x !== t); saveTOURN(); renderTourn(); };
+$('tClose').onclick = () => { const d = $('tDlg'); d.close ? d.close() : d.removeAttribute('open'); };
+function openTourn() {
+  const n = Math.max(2, [...new Set([...(LG.members || []), ...Object.keys(LGC)])].filter(id => id !== LG.gist).length + 1);
+  $('tRounds').value = Math.ceil(Math.log2(n)) || 1; $('tRoundsWrap').hidden = $('tFmt').value === 'ko';
+  renderTourn(); const d = $('tDlg'); d.showModal ? d.showModal() : d.setAttribute('open', '');
+}
+$('lgTourn').onclick = () => { const d = $('lgDlg'); d.close ? d.close() : d.removeAttribute('open'); openTourn(); };
+$('gmTourn').onclick = openTourn;
+
+// ---- Guía de primeros pasos ----
+const TOUR = [
+  ['#q', 'Busca cartas', 'Escribe un nombre, un código o una palabra de la habilidad. Con «Filtros» puedes buscar por instituto, posición, rareza o parámetros. JP / EN cambia entre las cartas japonesas y las inglesas.'],
+  ['#grid', 'Toca una carta para añadirla', 'Cada toque añade una copia al mazo. La «i» abre su ficha: traducción, palabras clave, colección y cartas relacionadas.'],
+  ['#tabDeck', 'Tu mazo', 'Aquí ves el mazo por roles, si es válido (40 cartas y 8 eventos como máximo), estadísticas, partidas y notas. Pulsa «Guardar» para guardar versiones.'],
+  ['#tabSheets', 'Imprimir proxies', 'Las cartas salen en hojas A4, 9 por hoja y a tamaño real. Puedes poner la traducción encima del texto de las cartas japonesas.'],
+  ['#listBtn', 'Importar mazos oficiales', 'En «Lista» puedes pegar listas o códigos e instalar el marcador «Vobaca», que trae mazos de la web oficial y hace imágenes con las cartas reales.'],
+  ['#glBtn', 'Guía de palabras clave', 'Explicación en español e inglés de cada palabra clave del juego. También se abre al tocar una palabra clave en la ficha de una carta.'],
+  ['#tabDeck', 'Tus datos, en todos tus dispositivos', 'En Mazo → «Copia / sincronizar» puedes hacer copias de seguridad o sincronizar con GitHub. Y desde el menú del navegador, «Añadir a pantalla de inicio» la instala como app.']
+];
+let tourI = 0;
+function tourShow() {
+  const [sel2, title, txt] = TOUR[tourI], el = document.querySelector(sel2);
+  document.querySelectorAll('.tour-hl').forEach(x => x.classList.remove('tour-hl'));
+  if (el) { el.classList.add('tour-hl'); el.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+  $('tourStep').textContent = `${tourI + 1} de ${TOUR.length}`; $('tourTitle').textContent = title; $('tourTxt').textContent = txt;
+  $('tourPrev').disabled = !tourI; $('tourNext').textContent = tourI === TOUR.length - 1 ? 'Empezar' : 'Siguiente';
+  $('tour').hidden = false;
+}
+function tourEnd() { $('tour').hidden = true; document.querySelectorAll('.tour-hl').forEach(x => x.classList.remove('tour-hl')); try { localStorage.setItem('vobaca-tour', '1'); } catch (e) {} }
+function startTour() { tourI = 0; setView('cards'); tourShow(); }
+$('tourNext').onclick = () => { if (tourI === TOUR.length - 1) return tourEnd(); tourI++; tourShow(); };
+$('tourPrev').onclick = () => { if (tourI) { tourI--; tourShow(); } };
+$('tourSkip').onclick = tourEnd;
+$('tourBtn').onclick = () => { closeGloss(); startTour(); };
+// La primera vez (sin mazos con cartas ni marca de haberla visto), se muestra sola
+try { if (!localStorage.getItem('vobaca-tour') && !decks.some(d => Object.keys(d.sel || {}).length) && !location.hash) setTimeout(startTour, 900); } catch (e) {}
+
+$('dkSugBox').addEventListener('toggle', () => { if ($('dkSugBox').open) renderSuggest(); });
 // ---- Sincronización con un Gist privado de GitHub ----
 const SYNC_FILE = 'vobaca-sync.json', GH_API = 'https://api.github.com';
 // JSON con las claves ordenadas, para comparar estados sin falsos cambios
@@ -4047,13 +4368,15 @@ function mergeSync(L, R) {
   Object.entries(L.col || {}).forEach(([k, v]) => { if (!col[k] || (v.t || 0) >= (col[k].t || 0)) col[k] = v; });
   const liga = ((L.liga && L.liga.t) || 0) >= ((R.liga && R.liga.t) || 0) ? (L.liga || {}) : R.liga;
   const tags = ((L.tags && L.tags.t) || 0) >= ((R.tags && R.tags.t) || 0) ? (L.tags || { list: [], t: 0 }) : R.tags;
+  const srch = ((L.srch && L.srch.t) || 0) >= ((R.srch && R.srch.t) || 0) ? (L.srch || { list: [], t: 0 }) : R.srch;
+  const tourn = ((L.tourn && L.tourn.t) || 0) >= ((R.tourn && R.tourn.t) || 0) ? (L.tourn || { list: [], t: 0 }) : R.tourn;
   const games = { ...(R.games || {}) };
   Object.entries(L.games || {}).forEach(([k, v]) => { if (!games[k] || (v.t || 0) >= (games[k].t || 0)) games[k] = v; });
-  return { decks: decks2, del, tr, lay, col, games, liga, tags };
+  return { decks: decks2, del, tr, lay, col, games, liga, tags, srch, tourn };
 }
-const localSync = () => ({ decks: decks.map(cleanDeck), del: DEL, tr: TR, lay: LAY, col: COL, games: GAMES, liga: LG, tags: TAGS });
+const localSync = () => ({ decks: decks.map(cleanDeck), del: DEL, tr: TR, lay: LAY, col: COL, games: GAMES, liga: LG, tags: TAGS, srch: SRCH, tourn: TOURN });
 // El orden de los mazos es de cada dispositivo: no cuenta como cambio
-const stateKey = x => canon([[...(x.decks || [])].sort((p, q) => p.id < q.id ? -1 : 1), x.del || {}, x.tr || {}, x.lay || {}, x.col || {}, x.games || {}, x.liga || {}, x.tags || {}]);
+const stateKey = x => canon([[...(x.decks || [])].sort((p, q) => p.id < q.id ? -1 : 1), x.del || {}, x.tr || {}, x.lay || {}, x.col || {}, x.games || {}, x.liga || {}, x.tags || {}, x.srch || {}, x.tourn || {}]);
 function applySync(M) {
   applying = true;
   const curId = decks[cur] && decks[cur].id;
@@ -4065,6 +4388,8 @@ function applySync(M) {
   Object.keys(GAMES).forEach(k => delete GAMES[k]); Object.assign(GAMES, M.games || {});
   if (M.liga) { LG = M.liga; try { localStorage.setItem('vobaca-liga', JSON.stringify(LG)); } catch (e) {} }
   if (M.tags) { TAGS = M.tags; try { localStorage.setItem('vobaca-tags', JSON.stringify(TAGS)); } catch (e) {} }
+  if (M.srch) { SRCH = M.srch; try { localStorage.setItem('vobaca-searches', JSON.stringify(SRCH)); } catch (e) {} paintSearches(); }
+  if (M.tourn) { TOURN = M.tourn; try { localStorage.setItem('vobaca-tourn', JSON.stringify(TOURN)); } catch (e) {} }
   try { localStorage.setItem('vobaca-games', JSON.stringify(GAMES)); } catch (e) {}
   try { localStorage.setItem('vobaca-col', JSON.stringify(COL)); } catch (e) {}
   const i = decks.findIndex(d => d.id === curId);
@@ -4099,7 +4424,7 @@ async function syncNow() {
   syncing = true; clearTimeout(syncTimer); paintSync('Sincronizando…');
   try {
     if (!SY.gist) SY.gist = await findGist();
-    let R = { decks: [], del: {}, tr: {}, lay: {}, col: {}, games: {}, liga: {}, tags: { list: [], t: 0 } }, exists = false;
+    let R = { decks: [], del: {}, tr: {}, lay: {}, col: {}, games: {}, liga: {}, tags: { list: [], t: 0 }, srch: { list: [], t: 0 }, tourn: { list: [], t: 0 } }, exists = false;
     if (SY.gist) {
       try {
         const g = await gh('/gists/' + SY.gist), f = g.files && g.files[SYNC_FILE];
@@ -4141,6 +4466,199 @@ if (SY.token) {
   setTimeout(syncNow, 800);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && Date.now() - (SY.last || 0) > 20000) syncNow(); });
 }
+
+// ---- Idioma de la interfaz (español / inglés) ----
+// Los textos se escriben en español; en inglés se traducen en pantalla con un diccionario (I18N) y reglas para los textos con números o nombres.
+// No se tocan el texto de las cartas, las traducciones ni lo que escribe el usuario.
+let UI = 'es';
+try { if (localStorage.getItem('vobaca-ui') === 'en') UI = 'en'; } catch (e) {}
+const I18N = {"Saltar": "Skip", "Anterior": "Back", "Siguiente": "Next", "Actualizar": "Update", "Guía": "Guide", "Lista": "List", "Versión": "Version", "Todas": "All", "Normal": "Normal", "Paralela": "Parallel", "Arte": "Alt art", "Buscar en habilidades": "Search in skills", "Solo elegidas": "Only chosen", "Mi colección": "My collection", "Las que tengo": "Ones I own", "Las que no tengo": "Ones I don't own", "Filtros": "Filters", "Guardar búsqueda": "Save search", "Instituto": "School", "Curso": "Year", "Todos": "All", "Posición": "Position", "Tipo": "Type", "Personaje": "Character", "Evento": "Event", "Rareza": "Rarity", "Limpiar filtros": "Clear filters", "Buscar cartas nuevas": "Look for new cards", "Ninguna carta coincide con la búsqueda.": "No card matches the search.", "Ver más": "Show more", "Mazo": "Deck", "+ Nuevo": "+ New", "Duplicar": "Duplicate", "Borrar": "Delete", "Mis mazos": "My decks", "Versiones": "Versions", "Guardar": "Save", "☆ Marcar como favorito": "☆ Mark as favourite", "★ Favorito": "★ Favourite", "Asignar roles automáticamente": "Assign roles automatically", "Jugar": "Play", "Marcador": "Scoreboard", "Probar mano": "Test hand", "Comparar": "Compare", "Traducir cartas": "Translate cards", "Compartir": "Share", "Imagen": "Image", "Enlace": "Link", "Código": "Code", "Código oficial": "Official code", "Traer mazos": "Get decks", "Mazos públicos": "Public decks", "Lista / importar": "List / import", "Datos": "Data", "Copia / sincronizar": "Backup / sync", "Vaciar mazo": "Empty deck", "Estadísticas": "Stats", "Sugerencias": "Suggestions", "Partidas": "Games", "Apuntar partida": "Log a game", "Liga con amigos": "League with friends", "Torneo": "Tournament", "Notas": "Notes", "Imprime a escala 100 % (tamaño real), sin márgenes. En Android: menú ⋮ → Compartir → Imprimir. En iPhone: botón Compartir → Imprimir.": "Print at 100% scale (actual size), with no margins. On Android: menu ⋮ → Share → Print. On iPhone: Share button → Print.", "Imprimir": "Print", "Incluir el Maybeboard": "Include the Maybeboard", "Usar la carta inglesa oficial cuando exista (sin recuadro de traducción)": "Use the official English card when there is one (no translation box)", "Imprimir solo las copias que no tengo (según mi colección)": "Print only the copies I don't own (based on my collection)", "Poner la traducción encima del texto (cartas japonesas) en": "Put the translation over the text (Japanese cards) in", "español": "Spanish", "inglés": "English", "Traducir las que faltan": "Translate the missing ones", "Cartas": "Cards", "Buscar y añadir": "Search and add", "Hojas": "Sheets", "Texto oficial en inglés": "Official English text", "Español": "Spanish", "English": "English", "Ver en el proxy": "Show on the proxy", "Editar": "Edit", "Retraducir": "Translate again", "Ajustar el recuadro en el proxy": "Adjust the box on the proxy", "Mueve los bordes si el recuadro tapa algún dato de la carta o no cubre todo el texto. El ajuste se guarda para esta versión de la carta.": "Move the edges if the box covers some card detail or does not cover all the text. The setting is saved for this version of the card.", "Borde de arriba": "Top edge", "Borde de abajo": "Bottom edge", "Márgenes laterales": "Side margins", "Tamaño de letra": "Font size", "Letra automática": "Automatic font size", "Restablecer": "Reset", "En mi colección": "In my collection", "cuenta cualquier versión de esta carta": "counts any version of this card", "+ Maybe": "+ Maybe", "Cerrar": "Close", "Copia de seguridad y sincronización": "Backup and sync", "Sincronizar entre dispositivos (GitHub)": "Sync between devices (GitHub)", "Pega tu token de GitHub (solo con el permiso «gist»). Se guarda solo en este dispositivo y no entra en las copias de seguridad.": "Paste your GitHub token (with only the «gist» permission). It is stored only on this device and is not included in backups.", "Conectar": "Connect", "Sincronizar ahora": "Sync now", "Desconectar este dispositivo": "Disconnect this device", "Copia de seguridad: guarda en un solo archivo todos tus mazos (con roles y Maybeboard), tus traducciones y correcciones, y tus ajustes. Sirve para pasarlos a otro móvil u ordenador, o a una versión nueva de la herramienta.": "Backup: saves all your decks (with roles and Maybeboard), your translations and corrections, and your settings in a single file. Use it to move them to another phone or computer, or to a new version of the tool.", "Exportar": "Export", "Descargar archivo": "Download file", "Copiar como texto": "Copy as text", "Importar": "Import", "Elige el archivo de la copia, o pega abajo el texto copiado.": "Choose the backup file, or paste the copied text below.", "Combinar con lo que ya hay aquí": "Merge with what is already here", "Sustituir todo lo de este dispositivo": "Replace everything on this device", "Mazos": "Decks", "Cartas más jugadas": "Most played cards", "Más nuevos": "Newest", "Más favoritos": "Most favourited", "Más antiguos": "Oldest", "Actualizar desde la web oficial": "Update from the official site", "Organiza un torneo con tus amigos de la liga y con invitados. La herramienta hace los emparejamientos de cada ronda y lleva la clasificación.": "Run a tournament with your league friends and guests. The tool pairs each round and keeps the standings.", "Nombre": "Name", "Formato": "Format", "Rondas suizas (todos juegan todas las rondas)": "Swiss rounds (everyone plays every round)", "Eliminatoria (quien pierde, queda fuera)": "Knockout (the loser is out)", "Número de rondas": "Number of rounds", "Jugadores": "Players", "Añadir": "Add", "Empezar el torneo": "Start the tournament", "Apuntar mis partidas también en el mazo abierto": "Also log my games in the open deck", "Siguiente ronda": "Next round", "Terminar el torneo": "Finish the tournament", "Clasificación": "Standings", "Cancelar torneo": "Cancel tournament", "Versiones guardadas": "Saved versions", "Cada vez que pulsas «Guardar» se guarda una versión del mazo. Lo que cambias se sigue guardando solo como borrador, así que no pierdes nada aunque se cierre la app.": "Each time you press «Save», a version of the deck is saved. What you change keeps being saved automatically as a draft, so you lose nothing even if the app closes.", "Descartar los cambios y volver a la última versión guardada": "Discard the changes and go back to the last saved version", "Cambiados hace poco": "Recently changed", "Por nombre": "By name", "Por número de cartas": "By number of cards", "Gestionar etiquetas": "Manage tags", "Crear": "Create", "Tú": "You", "sets ganados": "sets won", "Offense Point ·": "Offense Point ·", "poner a 0": "reset to 0", "Saca": "Serves", "He perdido el set": "I lost the set", "Rival": "Opponent", "Ha perdido el set": "They lost the set", "Guardar en Partidas": "Save to Games", "Fase actual (toca para marcarla). Primer turno de cada set: Saque → Fin. Después, o Bloqueo → Fin, o Robo → Recepción → Colocación → Ataque → Fin. Cada jugador empieza con 2 cartas de set: quien pierde un set sin cartas de set pierde la partida.": "Current phase (tap to mark it). First turn of each set: Serve → End. After that, either Block → End, or Draw → Receive → Set → Attack → End. Each player starts with 2 set cards: whoever loses a set with no set cards left loses the game.", "Partida nueva": "New game", "Deshacer": "Undo", "Roles automáticos": "Automatic roles", "Cada personaje recibe el rol de su habilidad si solo funciona en una zona. Si no, el que más le dan en los mazos públicos, o si no, el de su mejor parámetro según su posición. Puedes cambiar cualquiera antes de aplicar.": "Each character gets the role of its skill if the skill only works in one area. Otherwise, the role most players give it in public decks, or else the role of its best stat according to its position. You can change any of them before applying.", "Cambiar también las cartas a las que ya les pusiste rol": "Also change cards you already gave a role to", "Poner el rol sugerido al añadir cartas nuevas": "Give new cards their suggested role when added", "Cancelar": "Cancel", "Aplicar": "Apply", "Guía de palabras clave": "Keyword guide", "Ver la guía de primeros pasos de la herramienta": "Show the tool's getting-started guide", "Las definiciones salen del texto de las cartas y de las reglas oficiales. En inglés se usa el texto oficial cuando la carta ya ha salido en inglés.": "The definitions come from the card text and the official rules. In English, the official text is used when the card has been released in English.", "Para la liga necesitas tener conectada la sincronización con GitHub (Mazo → Copia / sincronizar). Cada amigo usa su propia cuenta.": "For the league you need to have GitHub sync connected (Deck → Backup / sync). Each friend uses their own account.", "Cada uno apunta sus partidas contra los demás en su herramienta y aquí se ve la clasificación de todos. Para empezar, elige el nombre con el que te verán tus amigos.": "Everyone logs their games against the others in their own tool, and here you see everyone's standings. To start, choose the name your friends will see.", "Empezar": "Start", "Últimas partidas": "Latest games", "Añadir amigo": "Add friend", "Tú añades el código de tu amigo y él añade el tuyo. Los amigos de tus amigos aparecen solos.": "You add your friend's code and they add yours. Friends of your friends appear automatically.", "Tu código": "Your code", "Compartir mi código": "Share my code", "Tu nombre": "Your name", "Dejar la liga": "Leave the league", "Comparar mazos": "Compare decks", "Mazo A": "Deck A", "Mazo B": "Deck B", "Mostrar también las cartas iguales": "Also show identical cards", "Victoria": "Win", "Derrota": "Loss", "Sets (opcional)": "Sets (optional)", "Rival de la liga": "League opponent", "Instituto del rival": "Opponent's school", "Mazo o jugador rival (opcional)": "Opponent deck or player (optional)", "Nota (opcional)": "Note (optional)", "Fecha": "Date", "Probar el mazo": "Test the deck", "Mano": "Hand", "Cartas de set": "Set cards", "Ver": "Show", "Ocultar": "Hide", "Nueva mano": "New hand", "Devolver las marcadas y robar": "Return the marked ones and draw", "Robar 1": "Draw 1", "Mano inicial por roles": "Opening hand by role", "Probabilidades de una carta": "Odds for one card", "Carta": "Card", "Pulsa": "Press", "Abrir la web oficial": "Open the official site", "Allí, lanza el marcador": "There, launch the bookmarklet", "desde la barra de direcciones: tócala, escribe «Vobaca» y toca el marcador que aparece en las sugerencias (no lo abras desde la lista de favoritos, porque así no funciona). Si estás en la app y se abre una ventana sin barra de direcciones, usa su menú ⋮ → «Abrir en el navegador».": "from the address bar: tap it, type «Vobaca» and tap the bookmarklet in the suggestions (it does not work when opened from the bookmarks list). If you are in the app and a window without an address bar opens, use its menu ⋮ → «Open in browser».", "Instalar el marcador «Vobaca» (solo la primera vez)": "Install the «Vobaca» bookmarklet (first time only)", "Pulsa «Copiar marcador».": "Press «Copy bookmarklet».", "Guarda cualquier página en favoritos y edita ese favorito: de nombre pon": "Bookmark any page and edit that bookmark: name it", "y en la dirección (URL) borra lo que haya y pega lo copiado.": "and in the address (URL) delete what is there and paste what you copied.", "Para usarlo en el móvil (Chrome, Brave…): en la web oficial toca la barra de direcciones, escribe «Vobaca» y toca el marcador que sale en las sugerencias. Desde la lista de favoritos no funciona. En el PC, haz clic en él en la barra de favoritos.": "To use it on your phone (Chrome, Brave…): on the official site tap the address bar, type «Vobaca» and tap the bookmarklet in the suggestions. It does not work from the bookmarks list. On a computer, click it in the bookmarks bar.", "Copiar marcador": "Copy bookmarklet", "Imagen del mazo": "Deck image", "Con las cartas reales": "With the real cards", "Descargar": "Download", "Lista de cartas": "Card list", "Importar un mazo del constructor oficial": "Import a deck from the official builder", "Abre el mazo en la web oficial (o pega su código y pulsa Abrir).": "Open the deck on the official site (or paste its code and press Open).", "Pulsa el marcador": "Press the bookmarklet", ". Saldrá el mazo con el botón": ". The deck appears with the button", "Abrir en Vobaca Proxies": "Open in Vobaca Proxies", ", que lo carga aquí como mazo nuevo.": ", which loads it here as a new deck.", "O bien pulsa Copiar, vuelve aquí, pega la lista abajo y pulsa \"Usar esta lista\".": "Or press Copy, come back here, paste the list below and press \"Use this list\".", "Abrir": "Open", "Instalar el marcador (solo la primera vez)": "Install the bookmarklet (first time only)", "Una carta por línea: cantidad y código. Pega aquí una decklist o copia la tuya para compartirla.": "One card per line: quantity and code. Paste a decklist here or copy yours to share it.", "Ejemplo:": "Example:", "(sin rareza se usa la versión normal).": "(without a rarity, the normal version is used).", "Líneas de corte": "Cut lines", "Separación": "Gap", "Copiar": "Copy", "Usar esta lista": "Use this list", "Versión de la herramienta": "Tool version", "Idioma de las cartas": "Card language", "Colección": "Set", "Nombre del mazo": "Deck name", "Etiquetas del mazo": "Deck tags", "Idea del mazo, qué devolver en el robo de nuevo, cambios contra cada instituto…": "Deck idea, what to return in the redraw, changes against each school…", "Idioma de la traducción": "Translation language", "Vistas": "Views", "Traducción editable": "Editable translation", "Quitar una de mi colección": "Remove one from my collection", "Añadir una a mi colección": "Add one to my collection", "…o pega aquí el texto de la copia": "…or paste the backup text here", "Buscar por nombre, autor o carta…": "Search by name, author or card…", "Orden": "Order", "Torneo de los viernes": "Friday tournament", "Añadir invitado": "Add guest", "Buscar por nombre o etiqueta…": "Search by name or tag…", "Nueva etiqueta": "New tag", "Nombre del rival": "Opponent's name", "Buscar: Toque, Stuffed, ドシャット…": "Search: Deflection, Stuffed, ドシャット…", "Idioma": "Language", "Tu nombre en la liga": "Your league name", "Código de un amigo (VBL-…)": "A friend's code (VBL-…)", "por ejemplo 3-1": "e.g. 3-1", "Código, ej. NDXru3cXnyvd": "Code, e.g. NDXru3cXnyvd", "Buscar: Hinata, 及川, HV-P02-015…": "Search: Hinata, 及川, HV-P02-015…", "Nota (por ejemplo: «más recepción contra Karasuno»)": "Note (e.g. «more receive against Karasuno»)", "Rol": "Role", "Ver detalles": "Details", "Saque": "Serve", "Bloqueo": "Block", "Recepción": "Receive", "Colocación": "Set", "Ataque": "Attack", "Libre": "Free", "Robo": "Draw", "Fin": "End", "Personajes": "Characters", "Eventos": "Events", "Maybeboard": "Maybeboard", "Bloq.": "Block", "Recep.": "Rec.", "Coloc.": "Set", "WS · Atacante": "WS · Wing spiker", "MB · Central": "MB · Middle blocker", "OP · Opuesto": "OP · Opposite", "S · Colocador": "S · Setter", "Li · Líbero": "Li · Libero", "Entrenador": "Coach", "Ex entrenador": "Former coach", "Ayudante": "Assistant", "Mánager": "Manager", "Todos los institutos": "All schools", "— Sin indicar —": "— Not specified —", "— Nadie de la liga —": "— Nobody from the league —", "— Rival sin liga —": "— Opponent outside the league —", "Sin etiqueta": "No tag", "+ Nueva etiqueta": "+ New tag", "Etiquetas:": "Tags:", "P (promo)": "P (promo)", "D (mazo)": "D (starter deck)", "Mazo Karasuno": "Karasuno deck", "Mazo Nekoma": "Nekoma deck", "Promos": "Promos", "Sin guardar todavía": "Not saved yet", "40 cartas ✓": "40 cards ✓", "Mazo válido para el constructor oficial": "Valid deck for the official builder", "Sin habilidad.": "No skill.", "vacías": "empty", "ninguna todavía": "none yet", "Preparando la imagen…": "Preparing the image…", "Imagen con las cartas.": "Image with the cards.", "Copiado": "Copied", "Copiada": "Copied", "¡Copiada!": "Copied!", "Guardado": "Saved", "Selecciónala y cópiala": "Select it and copy it", "Selecciónalo y cópialo": "Select it and copy it", "Selecciona el código y cópialo.": "Select the code and copy it.", "Selecciona el texto de abajo y cópialo.": "Select the text below and copy it.", "Esto no parece una copia de Vobaca Proxies.": "This does not look like a Vobaca Proxies backup.", "El mazo está vacío.": "The deck is empty.", "Código copiado. Pégalo en «Lista / importar» para cargar el mazo.": "Code copied. Paste it in «List / import» to load the deck.", "Copia copiada como texto. Pégala en «Importar» en el otro dispositivo.": "Backup copied as text. Paste it in «Import» on the other device.", "Imagen con las cartas reales": "Image with the real cards", "Código oficial del mazo": "Official deck code", "Ahora pulsa el marcador Vobaca en la web oficial.": "Now press the Vobaca bookmarklet on the official site.", "Ese código de mazo no existe o es privado": "That deck code does not exist or is private", "Ese enlace de mazo no es válido.": "That deck link is not valid.", "No había cartas nuevas.": "There were no new cards.", "Cartas de la web oficial hasta esta versión": "Cards from the official site up to this version", "Mazo restaurado.": "Deck restored.", "Cambios descartados.": "Changes discarded.", "Toca una carta para ver su ficha.": "Tap a card to see its details.", "Ya has hecho el robo de nuevo. Toca una carta para ver su ficha.": "You already did the redraw. Tap a card to see its details.", "se colocan al empezar (después del robo de nuevo)": "placed at the start (after the redraw)", "Toca las cartas que quieras devolver al mazo para el robo de nuevo (solo una vez). Si no quieres cambiar ninguna, pulsa «Robar 1» o «Ver» en las cartas de set.": "Tap the cards you want to return to the deck for the redraw (only once). If you don't want to change any, press «Draw 1» or «Show» on the set cards.", "Con el robo de nuevo (devolviendo la mano entera si no sale)": "With the redraw (returning the whole hand if it doesn't show up)", "Distinto número de copias": "Different number of copies", "Toca el nombre de quien gana cada partida.": "Tap the name of the winner of each game.", "Ronda completa.": "Round complete.", "Cuartos de final": "Quarterfinals", "Semifinales": "Semifinals", "Final": "Final", "Revisa los datos y pulsa Guardar.": "Check the details and press Save.", "Ya puedes buscarlas.": "You can search for them now.", "Creando tu código…": "Creating your code…", "Ese código no es válido (empieza por VBL-).": "That code is not valid (it starts with VBL-).", "Ese es tu propio código.": "That is your own code.", "Código copiado.": "Code copied.", "se crea al guardar tu nombre…": "created when you save your name…", "Todavía no hay partidas entre vosotros.": "No games between you yet.", "Aún no has añadido a nadie.": "You haven't added anyone yet.", "Apunta partidas eligiendo a un amigo como rival (Mazo → Partidas → Apuntar partida).": "Log games choosing a friend as the opponent (Deck → Games → Log a game).", "Añade personajes para ver las estadísticas.": "Add characters to see the stats.", "Descarga los mazos públicos (Traer mazos → Mazos públicos) para ver sugerencias.": "Download the public decks (Get decks → Public decks) to see suggestions.", "Añade algunas cartas para ver qué suele acompañarlas.": "Add some cards to see what usually goes with them.", "Ningún mazo público se parece a este todavía.": "No public deck looks like this one yet.", "Suelen llevar también": "They also usually run", "Poco habituales en mazos parecidos": "Unusual in similar decks", "Nada nuevo que sugerir.": "Nothing new to suggest.", "Su habilidad nombra a": "Its skill names", "Aún no has creado etiquetas.": "You haven't created any tags yet.", "Ningún mazo coincide.": "No deck matches.", "Ningún mazo coincide con la búsqueda.": "No deck matches the search.", "Este mazo no tiene personajes.": "This deck has no characters.", "No había roles que cambiar (las cartas con rol se respetan).": "There were no roles to change (cards with a role are kept).", "Pon roles a tus personajes (por ejemplo con «Asignar roles automáticamente») para ver esto.": "Give your characters roles (for example with «Assign roles automatically») to see this.", "…con el robo de nuevo": "…with the redraw", "guardando una carta de cada rol que ya tengas y devolviendo el resto": "keeping one card of each role you already have and returning the rest", "Aún no has guardado ninguna versión de este mazo. Pulsa «Guardar» cuando te guste cómo está.": "You haven't saved any version of this deck yet. Press «Save» when you like how it is.", "Renombrar": "Rename", "Volver a esta": "Restore this one", "Nota": "Note", "Primero escribe algo en el buscador o elige algún filtro.": "First type something in the search box or pick a filter.", "Búsqueda guardada.": "Search saved.", "Torneos anteriores": "Previous tournaments", "Jugador": "Player", "pasa sin jugar": "gets a bye", "contra": "vs", "Desemp.": "Tiebreak", "Suma de victorias de tus rivales": "Sum of your opponents' wins", "Rondas": "Rounds", "Sin nombre": "No name", "(tú)": "(you)", "· sin actualizar": "· not updated", "Hay una versión nueva": "There is a new version", "No conectado: los mazos solo están en este dispositivo.": "Not connected: your decks are only on this device.", "GitHub no acepta el token (¿caducado o mal copiado?)": "GitHub doesn't accept the token (expired or copied wrong?)", "el token no tiene el permiso «gist»": "the token doesn't have the «gist» permission", "Busca cartas": "Search for cards", "Toca una carta para añadirla": "Tap a card to add it", "Tu mazo": "Your deck", "Imprimir proxies": "Print proxies", "Importar mazos oficiales": "Import official decks", "Tus datos, en todos tus dispositivos": "Your data, on all your devices", "Escribe un nombre, un código o una palabra de la habilidad. Con «Filtros» puedes buscar por instituto, posición, rareza o parámetros. JP / EN cambia entre las cartas japonesas y las inglesas.": "Type a name, a code or a word from the skill. With «Filters» you can search by school, position, rarity or stats. JP / EN switches between Japanese and English cards.", "Cada toque añade una copia al mazo. La «i» abre su ficha: traducción, palabras clave, colección y cartas relacionadas.": "Each tap adds a copy to the deck. The «i» opens its details: translation, keywords, collection and related cards.", "Aquí ves el mazo por roles, si es válido (40 cartas y 8 eventos como máximo), estadísticas, partidas y notas. Pulsa «Guardar» para guardar versiones.": "Here you see the deck by role, whether it is valid (40 cards and at most 8 events), stats, games and notes. Press «Save» to save versions.", "Las cartas salen en hojas A4, 9 por hoja y a tamaño real. Puedes poner la traducción encima del texto de las cartas japonesas.": "Cards are laid out on A4 sheets, 9 per sheet and at actual size. You can put the translation over the text of Japanese cards.", "En «Lista» puedes pegar listas o códigos e instalar el marcador «Vobaca», que trae mazos de la web oficial y hace imágenes con las cartas reales.": "In «List» you can paste lists or codes and install the «Vobaca» bookmarklet, which brings decks from the official site and makes images with the real cards.", "Explicación en español e inglés de cada palabra clave del juego. También se abre al tocar una palabra clave en la ficha de una carta.": "Explanation in Spanish and English of every keyword in the game. It also opens when you tap a keyword in a card's details.", "En Mazo → «Copia / sincronizar» puedes hacer copias de seguridad o sincronizar con GitHub. Y desde el menú del navegador, «Añadir a pantalla de inicio» la instala como app.": "In Deck → «Backup / sync» you can make backups or sync with GitHub. And from the browser menu, «Add to Home screen» installs it as an app.", "Mazo oficial": "Official deck", "Mi mazo": "My deck", "Recogepelotas": "Ball boy", "Ver la ficha": "See details", "Las imágenes de las cartas solo se pueden dibujar desde la web oficial, así que la imagen se hace allí con tu marcador.": "Card images can only be drawn from the official site, so the image is made there with your bookmarklet.", "Saldrá la imagen del mazo: descárgala, compártela o mantenla pulsada para guardarla.": "The deck image will appear: download it, share it or long-press it to save it.", "El mazo se carga en el constructor oficial de Takara Tomy. Al guardarlo allí, la web te da su código oficial para compartirlo.": "The deck is loaded into the official Takara Tomy builder. When you save it there, the site gives you its official code to share.", "La herramienta trae las cartas que había cuando se hizo esta versión. Con el marcador puedes añadir las que hayan salido después en la web oficial, sin esperar a una versión nueva.": "The tool includes the cards that existed when this version was made. With the bookmarklet you can add the ones released afterwards on the official site, without waiting for a new version.", "Se descargan los mazos que la gente ha publicado en la web oficial, para verlos aquí, filtrarlos e importarlos.": "The decks people have published on the official site are downloaded, so you can see, filter and import them here.", "Cuando termine, pulsa": "When it finishes, press", "Necesitas abrir la herramienta desde tu web de GitHub (con el marcador nuevo) para que esto funcione.": "You need to open the tool from your GitHub site (with the new bookmarklet) for this to work.", "Este marcador carga el script desde tu web, así que sirve para todo: importar mazos oficiales, la imagen con las cartas reales y el código oficial. Si ya tenías el marcador antiguo, sustitúyelo por este.": "This bookmarklet loads the script from your site, so it works for everything: importing official decks, the image with the real cards and the official code. If you had the old bookmarklet, replace it with this one.", "Estás usando la herramienta como archivo: este marcador largo solo sirve para importar mazos oficiales. La imagen con cartas reales y el código oficial necesitan la herramienta abierta desde tu web de GitHub.": "You are using the tool as a file: this long bookmarklet only works for importing official decks. The image with real cards and the official code need the tool opened from your GitHub site.", "Las miniaturas de las cartas no se pueden dibujar desde este archivo (el servidor de Takara Tomy no lo permite o no hay conexión), así que la imagen lleva la lista en texto.": "Card thumbnails can't be drawn from this file (the Takara Tomy server doesn't allow it or there is no connection), so the image has the list as text.", "El mazo está vacío. Ve a \"Cartas\" y toca las que quieras añadir, o importa un mazo desde \"Lista / importar\".": "The deck is empty. Go to \"Cards\" and tap the ones you want to add, or import a deck from \"List / import\".", "Cartas que estás pensando meter. Añádelas con «+ Maybe» en la ficha de una carta, o baja copias del mazo con «↓ Maybe».": "Cards you are thinking of adding. Add them with «+ Maybe» in a card's details, or move copies down from the deck with «↓ Maybe».", "Aún no has elegido cartas. Vuelve a \"Cartas\" y toca las que quieras.": "You haven't chosen any cards yet. Go back to \"Cards\" and tap the ones you want.", "↑ Al mazo": "↑ To deck", "↓ Maybe": "↓ Maybe", "Pasar una copia al mazo": "Move a copy to the deck", "Pasar una copia al Maybeboard": "Move a copy to the Maybeboard", "Quitar una": "Remove one", "Añadir una": "Add one", "Rol sugerido:": "Suggested role:", "Suele ir con:": "Usually goes with:", "Ver la guía": "Show the guide", "Volver a la versión": "Go back to version", "Official English text": "Official English text", "Unofficial translation": "Unofficial translation", "Keywords with a number": "Keywords with a number", "Habilidades con número": "Keywords with a number", "Límites y momentos": "Limits and timing", "Zonas": "Areas", "Otros términos": "Other terms", "Fase actual": "Current phase", "Partida": "Game", "Borrar búsqueda": "Delete search", "válido": "valid", "Media": "Average", "Rango": "Range", "Públicos": "Public", "Iguales": "Identical", "Central": "Middle blocker", "Atacante": "Wing spiker", "Colocador": "Setter", "Líbero": "Libero", "Opuesto": "Opposite", "traducido del japonés": "translated from Japanese", "traducido del texto oficial en inglés": "translated from the official English text", "corregido por ti": "corrected by you", "sin traducción": "not translated", "texto oficial en inglés": "official English text", "esta carta ya está en inglés": "this card is already in English", "No se ha podido traducir (¿sin conexión?). Prueba con Google Translate →": "Couldn't translate (no connection?). Try Google Translate →", "Se perderán tus correcciones de esta carta en este idioma. ¿Volver a traducir?": "Your corrections of this card in this language will be lost. Translate again?", "Traducir": "Translate", "Traduciendo ${done + 1} de ${todo.length}…": "Translating…", "¿Vaciar este mazo? El Maybeboard se mantiene.": "Empty this deck? The Maybeboard is kept.", "Se sustituirán todos los mazos, traducciones y ajustes de este dispositivo. ¿Seguir?": "All decks, translations and settings on this device will be replaced. Continue?", "¿Borrar esta partida?": "Delete this game?", "Editar partida": "Edit game", "¿Quitar a este amigo de tu liga?": "Remove this friend from your league?", "Primero conecta la sincronización con GitHub (Mazo → Copia / sincronizar).": "First connect GitHub sync (Deck → Backup / sync).", "¿Dejar de usar la liga en tus dispositivos? Tus partidas no se borran.": "Stop using the league on your devices? Your games are not deleted.", "Copia tu código:": "Copy your code:", "Nombre de la etiqueta nueva (por ejemplo: Torneo, Pruebas, Karasuno):": "Name of the new tag (for example: Tournament, Testing, Karasuno):", "¿Empezar una partida nueva? Se borra el marcador actual.": "Start a new game? The current scoreboard is cleared.", "¿Borrar esta versión guardada?": "Delete this saved version?", "¿Descartar los cambios y volver a la última versión guardada?": "Discard the changes and go back to the last saved version?", "Nombre para esta búsqueda (por ejemplo: «Receptores de Nekoma»):": "Name for this search (for example: «Nekoma receivers»):", "Hacen falta al menos 2 jugadores.": "At least 2 players are needed.", "¿Cancelar este torneo? Se borra y no cuenta.": "Cancel this tournament? It is deleted and doesn't count.", "Torneo guardado.": "Tournament saved.", "¿Desconectar este dispositivo? Tus mazos se quedan aquí y en GitHub; solo se borra el token de este dispositivo.": "Disconnect this device? Your decks stay here and on GitHub; only this device's token is removed.", "El enlace solo funciona con la herramienta abierta desde tu web de GitHub. Mientras tanto usa «Código».": "The link only works with the tool opened from your GitHub site. Meanwhile, use «Code».", "Enlace copiado. Quien lo abra podrá añadir el mazo a su herramienta.": "Link copied. Whoever opens it can add the deck to their tool.", "Copia este enlace:": "Copy this link:", "Pega un código de mazo oficial": "Paste an official deck code", "otro instituto": "another school", "Asignar roles": "Assign roles", "Sets": "Sets", "Media de todos tus personajes:": "Average of all your characters:", "Buscar: Hinata, 及川, ドシャット…": "Search: Hinata, 及川, ドシャット…", "Buscar: Hinata, Deflection, HV-P01-008…": "Search: Hinata, Deflection, HV-P01-008…", "Etiquetas: torneo, pruebas, Karasuno…": "Tags: tournament, testing, Karasuno…", "Importado. Recargando…": "Imported. Reloading…", "Actualizando…": "Updating…", "Sincronizando…": "Syncing…", "Niiyama (fem.)": "Niiyama (women's)", "Kitagawa Daiichi (sec.)": "Kitagawa Daiichi (middle school)", "Nekoma (sec.)": "Nekoma (middle school)", "Shiratorizawa (sec.)": "Shiratorizawa (middle school)", "Kosen (sec.)": "Kosen (middle school)", "Youth (selección juvenil)": "Youth (youth national team)", "Equipo vecinal": "Neighbourhood team", "Selección japonesa": "Japan national team", "Animación": "Cheer squad", "Jefe de animación": "Cheer captain", "Mascota": "Mascot", "Los dos mazos tienen las mismas cartas.": "Both decks have the same cards.", "Se rellenará el constructor con tus cartas y roles. Revisa y pulsa el botón de guardar de la web (": "The builder will be filled with your cards and roles. Check it and press the site's save button (", "): te dará el código.": "): it will give you the code.", "Se comprobarán todas las cartas de la web oficial. Si hay nuevas, pulsa": "All cards on the official site will be checked. If there are new ones, press", "para añadirlas aquí.": "to add them here."};
+const pl = (n, one, many) => (+n === 1 ? one : many);
+const roleEn = s => I18N[s] || s;
+const ZONE_EN = { 'zona de saque': 'Serve Area', 'zona de bloqueo': 'Block Area', 'zona de recepción': 'Receive Area', 'zona de colocación': 'Set Area', 'zona de ataque': 'Attack Area' };
+const I18N_RE = [
+  [/^(\d+) cartas?$/, (m, n) => `${n} ${pl(n, 'card', 'cards')}`],
+  [/^(\d+) mazos?$/, (m, n) => `${n} ${pl(n, 'deck', 'decks')}`],
+  [/^(\d+) jugadores$/, '$1 players'],
+  [/^(\d+) de (\d+)$/, '$1 of $2'],
+  [/^(\d+) de (\d+) mazos$/, '$1 of $2 decks'],
+  [/^Ver más \((\d+) restantes\)$/, 'Show more ($1 left)'],
+  [/^Ver más \((\d+) cartas\)$/, 'Show more ($1 cards)'],
+  [/^Ver (\d+) cartas?$/, (m, n) => `See ${n} ${pl(n, 'card', 'cards')}`],
+  [/^Tienes (\d+) en tu colección$/, 'You own $1'],
+  [/^tienes (\d+)$/, 'you own $1'],
+  [/^(\d+) en el Maybeboard$/, '$1 in the Maybeboard'],
+  [/^(\d+) en el mazo$/, '$1 in the deck'],
+  [/^(\d+) en Maybe$/, '$1 in Maybe'],
+  [/^\((\d+) en el mazo\)$/, '($1 in the deck)'],
+  [/^Faltan (\d+) cartas?$/, (m, n) => `${n} ${pl(n, 'card', 'cards')} missing`],
+  [/^Sobran (\d+) \(máximo 40(; el constructor oficial no deja pasar de 50)?\)$/, (m, n, x) => `${n} too many (max 40${x ? '; the official builder does not allow more than 50' : ''})`],
+  [/^Eventos: (\d+) \/ 8 ✓$/, 'Events: $1 / 8 ✓'],
+  [/^Eventos: (\d+) \/ 8 \(sobran (\d+)\)$/, 'Events: $1 / 8 ($2 too many)'],
+  [/^Sin cartas prohibidas ni restringidas \(reglamento de torneos (v[\d.]+)\)$/, 'No banned or restricted cards (tournament rules $1)'],
+  [/^(.+) está prohibida en torneos$/, '$1 is banned in tournaments'],
+  [/^(.+): máximo 1 copia en torneos \(tienes (\d+)\)$/, '$1: max 1 copy in tournaments (you have $2)'],
+  [/^no cuentan? para el mazo$/, 'not counted in the deck'],
+  [/^última versión: (.+)$/, 'last version: $1'],
+  [/^Cambios sin guardar$/, 'Unsaved changes'],
+  [/^Versiones \((\d+)\)$/, 'Versions ($1)'],
+  [/^Versión (\d+)$/, 'Version $1'],
+  [/^Mazo guardado \(versión (\d+)\)\. Puedes ponerle una nota en «Versiones»\.$/, 'Deck saved (version $1). You can add a note in «Versions».'],
+  [/^respecto al mazo de ahora: \+(\d+) \/ −(\d+)$/, 'compared with the current deck: +$1 / −$2'],
+  [/^igual que el mazo de ahora$/, 'same as the current deck'],
+  [/^¿Volver a la versión (\d+)\? El mazo de ahora se guarda antes como versión, por si quieres recuperarlo\.$/, 'Go back to version $1? The current deck is saved first as a version, in case you want it back.'],
+  [/^(.+) \(guardada\)$/, '$1 (saved)'], [/^(.+) \(público\)$/, '$1 (public)'], [/^(.+) \(invitado\)$/, '$1 (guest)'], [/^(.+) \(tú\)$/, (m, x) => (I18N[x] || x) + ' (you)'],
+  [/^Mazo (.+)$/, (m, x) => x + ' deck'],
+  [/^¿Borrar el mazo «(.+)»\?$/, 'Delete the deck «$1»?'],
+  [/^(\d+) mazos? · (\d+) traducci(?:ón|ones) \((\d+) corregidas por ti\)$/, (m, a, b, c) => `${a} ${pl(a, 'deck', 'decks')} · ${b} ${pl(b, 'translation', 'translations')} (${c} corrected by you)`],
+  [/^Incluir el Maybeboard \((\d+) cartas?\)$/, (m, n) => `Include the Maybeboard (${n} ${pl(n, 'card', 'cards')})`],
+  [/^se omiten (\d+)$/, '$1 skipped'],
+  [/^(\d+) cartas? japonesas? no tienen? traducción todavía\.$/, (m, n) => `${n} Japanese ${pl(n, 'card has', 'cards have')} no translation yet.`],
+  [/^Traduciendo (\d+) de (\d+)…$/, 'Translating $1 of $2…'],
+  [/^No se han podido traducir (\d+) \(¿sin conexión\?\)\.$/, "Couldn't translate $1 (no connection?)."],
+  [/^La web oficial solo guarda mazos de 40 cartas con 8 eventos como máximo \(este tiene (\d+) y (\d+) eventos\)\. Se cargará igualmente para que lo ajustes allí\.$/, 'The official site only saves decks of 40 cards with at most 8 events (this one has $1 and $2 events). It will be loaded anyway so you can adjust it there.'],
+  [/^Importado(?: «(.+)»)?: (\d+) cartas(?: \+ (\d+) en Maybe)?$/, (m, n, a, b) => `Imported${n ? ' «' + n + '»' : ''}: ${a} cards${b ? ' + ' + b + ' in Maybe' : ''}`],
+  [/^No reconocidas: (.+)$/, 'Not recognised: $1'],
+  [/^¿Añadir el mazo oficial «(.+)» como mazo nuevo\?$/, 'Add the official deck «$1» as a new deck?'],
+  [/^¿Añadir el mazo «(.+)» \((\d+) cartas\) como mazo nuevo\?$/, 'Add the deck «$1» ($2 cards) as a new deck?'],
+  [/^Mazo «(.+)» añadido\.$/, 'Deck «$1» added.'], [/^Mazo «(.+)» importado\.$/, 'Deck «$1» imported.'],
+  [/^Se han encontrado (\d+) cartas japonesas y (\d+) inglesas nuevas\. ¿Añadirlas a la herramienta\?$/, 'Found $1 new Japanese and $2 new English cards. Add them to the tool?'],
+  [/^Añadidas (\d+) cartas nuevas\. Ya puedes buscarlas\.$/, 'Added $1 new cards. You can search for them now.'],
+  [/^(\d+) cartas añadidas desde la web oficial(?: \((.+)\))?$/, (m, n, d) => `${n} cards added from the official site${d ? ' (' + d + ')' : ''}`],
+  [/^Descargados de la web oficial el (.+)\. Al importar, el mazo se añade como mazo nuevo\.$/, 'Downloaded from the official site on $1. Importing adds the deck as a new deck.'],
+  [/^por (.+)$/, 'by $1'],
+  [/^quedan (\d+) en el mazo$/, '$1 left in the deck'],
+  [/^Devolver (\d+) y robar$/, 'Return $1 and draw'],
+  [/^En la mano inicial \((\d+) cartas\)$/, 'In the opening hand ($1 cards)'],
+  [/^Tras robar (\d+) cartas? más \((\d+) vistas\)$/, (m, a, b) => `After drawing ${a} more ${pl(a, 'card', 'cards')} (${b} seen)`],
+  [/^(\d+) copias? en un mazo de (\d+) cartas\. Probabilidad de tener al menos una\.$/, (m, k, n) => `${k} ${pl(k, 'copy', 'copies')} in a ${n}-card deck. Chance of having at least one.`],
+  [/^Para probar el mazo necesitas al menos (\d+) cartas\.$/, 'To test the deck you need at least $1 cards.'],
+  [/^(\d+) cartas( \(el mazo de torneo es de 40\))?\. Mano inicial de (\d+) cartas, un robo de nuevo y (\d+) cartas de set, como en las reglas oficiales\.$/, (m, n, t, h, s2) => `${n} cards${t ? ' (a tournament deck has 40)' : ''}. Opening hand of ${h} cards, one redraw and ${s2} set cards, as in the official rules.`],
+  [/^Mano con (.+)$/, (m, l) => 'Hand with ' + l.split(', ').map(roleEn).join(', ')],
+  [/^Al menos una de (.+)$/, (m, r) => 'At least one ' + roleEn(r)],
+  [/^Simulación de ([\d.]+) manos iniciales de (\d+) cartas\. Media de eventos en la mano: ([\d,]+)\.$/, 'Simulation of $1 opening hands of $2 cards. Average events in hand: $3.'],
+  [/^(\d+ %) de victorias$/, '$1 wins'],
+  [/^contra (.+):$/, (m, x) => `vs ${roleEn(x) === x ? (x === 'otros' ? 'others' : x) : roleEn(x)}:`],
+  [/^contra (.+)$/, (m, x) => 'vs ' + (x === 'otro instituto' ? 'another school' : x)],
+  [/^Apuntar partida · (.+)$/, 'Log a game · $1'],
+  [/^principalmente (.+)$/, 'mostly $1'],
+  [/^(Saque|Bloqueo|Recepción|Colocación|Ataque|Libre|Personajes) ([\d,–-]+)$/, (m, r, n) => roleEn(r) + ' ' + n],
+  [/^No aparece en ninguno de los (\d+) mazos públicos$/, 'Not in any of the $1 public decks'],
+  [/^(\d+ %) de los de (.+)$/, '$1 of $2 decks'],
+  [/^en (\d+) de (\d+) mazos$/, 'in $1 of $2 decks'],
+  [/^en (\d+) de (\d+) mazos parecidos \((\d+ %)\)$/, 'in $1 of $2 similar decks ($3)'],
+  [/^(\d+ %) de los mazos parecidos la llevan$/, '$1 of similar decks run it'],
+  [/^tú llevas (\d+)$/, 'you run $1'],
+  [/^normalmente (.+)$/, 'usually $1'],
+  [/^(\d+) cartas distintas en (\d+) mazos(?: de (.+))?$/, (m, a, b, c) => `${a} different cards in ${b} decks${c ? ' of ' + c : ''}`],
+  [/^Comparado con los (\d+) mazos públicos que más se parecen al tuyo\.$/, 'Compared with the $1 public decks most similar to yours.'],
+  [/^Añadida: (.+)$/, 'Added: $1'], [/^(\d+) ideas$/, '$1 ideas'],
+  [/^(\d+) iguales$/, '$1 identical'], [/^(\d+) con distinto número$/, '$1 with a different count'], [/^(\d+) solo en ([AB])$/, '$1 only in $2'], [/^(\d+) copias? distintas?$/, (m, n) => `${n} different ${pl(n, 'copy', 'copies')}`],
+  [/^Solo en ([AB])$/, 'Only in $1'], [/^Iguales$/, 'Identical'],
+  [/^Ahora: (.+)$/, (m, l) => 'Now: ' + l.split(', ').map(x => x.replace(/^(\S+)/, r => roleEn(r))).join(', ')],
+  [/^su habilidad funciona en la (.+)$/, (m, z) => 'its skill works in the ' + (ZONE_EN[z] || z)],
+  [/^así lo juega el (\d+) % de los mazos públicos$/, "that's how $1% of public decks play it"],
+  [/^(entre las zonas de su habilidad, )?su mejor parámetro \((\S+) (\d+)\)(?: y su posición \((.+)\))?$/, (m, z, r, n, p) => `${z ? 'among its skill areas, ' : ''}its best stat (${roleEn(r)} ${n})${p ? ' and its position (' + p.split('/').map(x => I18N[x] || x).join('/') + ')' : ''}`],
+  [/^no tiene parámetros$/, 'it has no stats'],
+  [/^Roles puestos a (\d+) cartas?\.$/, (m, n) => `Roles set on ${n} ${pl(n, 'card', 'cards')}.`],
+  [/^Todas las cartas japonesas del mazo ya están traducidas al (español|inglés)\.$/, (m, l) => `All Japanese cards in the deck are already translated into ${l === 'inglés' ? 'English' : 'Spanish'}.`],
+  [/^Traducidas (\d+) de (\d+)\. (\d+) no se han podido traducir \(¿sin conexión\?\)\.$/, "Translated $1 of $2. $3 couldn't be translated (no connection?)."],
+  [/^Traducidas (\d+) cartas al (español|inglés)\. Puedes revisarlas en la ficha de cada carta\.$/, (m, n, l) => `Translated ${n} cards into ${l === 'inglés' ? 'English' : 'Spanish'}. You can review them in each card's details.`],
+  [/^¿Borrar la etiqueta «(.+)»\? Se quitará de (\d+) mazos? \(los mazos no se borran\)\.$/, (m, t, n) => `Delete the tag «${t}»? It will be removed from ${n} ${pl(n, 'deck', 'decks')} (the decks are not deleted).`],
+  [/^Nuevo nombre para «(.+)»:$/, 'New name for «$1»:'],
+  [/^cambiado el (.+)$/, 'changed on $1'],
+  [/^(\d+) cartas? de set$/, (m, n) => `${n} set ${pl(n, 'card', 'cards')}`],
+  [/^¡Has ganado (\d+-\d+)(?: contra (.+))?!$/, (m, s2, o) => `You won ${s2}${o ? ' against ' + o : ''}!`],
+  [/^Has perdido (\d+-\d+)(?: contra (.+))?!$/, (m, s2, o) => `You lost ${s2}${o ? ' against ' + o : ''}!`],
+  [/^La nombran (\d+) cartas?$/, (m, n) => `Named by ${n} ${pl(n, 'card', 'cards')}`],
+  [/^evento$/, 'event'], [/^en tu mazo$/, 'in your deck'],
+  [/^Hay una versión nueva \((v[\d.]+)\)\.$/, 'There is a new version ($1).'],
+  [/^¿Borrar la búsqueda «(.+)»\?$/, 'Delete the search «$1»?'], [/^Búsqueda «(.+)» guardada\.$/, 'Search «$1» saved.'], [/^Búsqueda «(.+)»$/, 'Search «$1»'],
+  [/^ganó (.+)$/, 'won by $1'], [/^eliminatoria$/, 'knockout'], [/^rondas suizas \((\d+)\)$/, 'Swiss ($1 rounds)'],
+  [/^Ronda (\d+) de (\d+)$/, 'Round $1 of $2'], [/^Ronda (\d+)$/, 'Round $1'], [/^¡Torneo terminado! Gana (.+)\.$/, 'Tournament over! $1 wins.'],
+  [/^Conectado\. Última sincronización: (.+)\. Los cambios se suben solos\.$/, 'Connected. Last sync: $1. Changes are uploaded automatically.'], [/^Conectado\.$/, 'Connected.'],
+  [/^Error al sincronizar: (.+)$/, (m, e) => 'Sync error: ' + trText(e)], [/^No se ha podido conectar: (.+)$/, (m, e) => "Couldn't connect: " + trText(e)], [/^GitHub respondió (\d+)$/, 'GitHub answered $1'],
+  [/^Actualizado (.+)$/, 'Updated $1'], [/^No se ha podido actualizar: (.+)$/, "Couldn't update: $1"], [/^No se ha podido crear: (.+)$/, "Couldn't create: $1"],
+  [/^con «(.+)»$/, 'with «$1»'], [/^rival: (.+)$/, 'opponent: $1'], [/^(.+) contra (.+)$/, '$1 vs $2'],
+  [/^Añadir (.+)$/, 'Add $1'],
+  [/^(\d+) hojas? A4$/, (m, n) => `${n} A4 ${pl(n, 'sheet', 'sheets')}`],
+  [/^(\d+) eventos$/, '$1 events'],
+  [/^(\d+) personajes$/, '$1 characters'],
+  [/^Cartas japonesas$/, 'Japanese cards']
+];
+// Frases dentro de textos largos con varias partes
+const I18N_PH = [
+  [/«Media» es el parámetro de ese rol \(Recepción para los receptores, etc\.\)\./, '«Average» is that role\'s stat (Receive for receivers, etc.).'],
+  [/ Además tienes (\d+) cartas? libres?, sin rol\./, (m, n) => ` You also have ${n} free ${pl(n, 'card', 'cards')}, with no role.`],
+  [/ «Públicos» es la media en los (\d+) mazos públicos de (.+?) y cuántas cartas suelen llevar en ese rol\./, ' «Public» is the average in the $1 public decks of $2 and how many cards they usually run in that role.'],
+  [/ En naranja, los roles por debajo de lo habitual\./, ' In orange, the roles below the usual.'],
+  [/ Descarga los mazos públicos para compararlo con ellos\./, ' Download the public decks to compare with them.'],
+  [/^En mazos públicos: $/, 'In public decks: '], [/^ \((\d+) de (\d+)\), normalmente $/, ' ($1 of $2), usually '],
+  [/^ · (\d+ %) de los de (.+)$/, ' · $1 of $2 decks']
+];
+const normT = s => s.replace(/\s+/g, ' ').trim();
+function trPart(n) {
+  if (I18N[n] != null) return I18N[n];
+  for (const [re, rep] of I18N_RE) if (re.test(n)) return n.replace(re, rep);
+  return null;
+}
+function trText(s) {
+  if (UI !== 'en' || s == null) return s;
+  const n = normT(String(s)); if (!n || !/[a-záéíóúñ¿¡]/i.test(n)) return s;
+  const lead = String(s).match(/^\s*/)[0], trail = String(s).match(/\s*$/)[0];
+  // Textos que empiezan por «· » (continuación de otra parte)
+  if (n.startsWith('· ')) { const r2 = trPart(n.slice(2)); if (r2 != null) return lead + '· ' + r2 + trail; }
+  let r = trPart(n);
+  if (r == null && n.includes(' · ')) { const parts = n.split(' · '); const t = parts.map(p => trPart(p) ?? p); if (t.some((x, i) => x !== parts[i])) r = t.join(' · '); }
+  if (r == null) { let x = String(s); I18N_PH.forEach(([re, rep]) => { x = x.replace(re, rep); }); if (x !== String(s)) return x; return s; }
+  return lead + r + trail;
+}
+const NOTR_IDS = new Set(['iSkill', 'iAnn', 'iEnSkill', 'iEnAnn', 'iTrView', 'iTrText', 'glList', 'iName', 'iJp', 'txt', 'bkText', 'tour-none']);
+function noTr(el) {
+  for (let e = el; e && e.nodeType === 1; e = e.parentElement) {
+    if (e.id && NOTR_IDS.has(e.id)) return true;
+    if (e.tagName === 'TEXTAREA' || e.tagName === 'SCRIPT' || e.tagName === 'STYLE' || e.tagName === 'CODE') return true;
+    if (e.classList && e.classList.contains('notr')) return true;
+    if (e.tagName === 'OPTION' && e.closest('#dkSel,#cmpA,#cmpB,#gmFriend,#mtFriend')) return true;
+  }
+  return false;
+}
+const TR_ATTRS = ['placeholder', 'title', 'aria-label', 'label'];
+function trEl(el) {
+  if (noTr(el)) return;
+  TR_ATTRS.forEach(a => { if (el.hasAttribute(a)) { const v = el.getAttribute(a), t = trText(v); if (t !== v) el.setAttribute(a, t); } });
+  for (let ch = el.firstChild; ch; ch = ch.nextSibling) trNode(ch);
+}
+function trNode(node) {
+  if (UI !== 'en') return;
+  if (node.nodeType === 3) {
+    const p = node.parentElement; if (!p || noTr(p)) return;
+    let v = node.nodeValue, t;
+    // Insignias de partidas (V/D) y cabeceras de tabla de una letra
+    if (p.classList.contains('gm-res') && /^[VD]\b/.test(v)) t = v.replace(/^V/, 'W').replace(/^D/, 'L');
+    else if (p.tagName === 'TH' && ({ V: 'W', D: 'L', PJ: 'GP' })[v.trim()]) t = ({ V: 'W', D: 'L', PJ: 'GP' })[v.trim()];
+    else t = trText(v);
+    if (t !== v) node.nodeValue = t;
+  } else if (node.nodeType === 1) trEl(node);
+}
+if (UI === 'en') {
+  document.documentElement.lang = 'en';
+  const _alert = window.alert.bind(window), _confirm = window.confirm.bind(window), _prompt = window.prompt.bind(window);
+  window.alert = m => _alert(trText(String(m)));
+  window.confirm = m => _confirm(trText(String(m)));
+  window.prompt = (m, d) => _prompt(trText(String(m)), d);
+  trEl(document.body);
+  new MutationObserver(ms => ms.forEach(m => {
+    if (m.type === 'characterData') trNode(m.target);
+    else if (m.type === 'attributes') { if (!noTr(m.target)) { const v = m.target.getAttribute(m.attributeName), t = trText(v); if (t !== v) m.target.setAttribute(m.attributeName, t); } }
+    else m.addedNodes.forEach(trNode);
+  })).observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: TR_ATTRS });
+  try { if (!localStorage.getItem('vobaca-gllang')) GL_LANG = 'en'; } catch (e) {}
+  try { if (!localStorage.getItem('vobaca-trlang')) setTrLang('en'); } catch (e) {}
+}
+$('uiBtn').textContent = UI === 'en' ? '🌐 EN' : '🌐 ES';
+$('uiBtn').onclick = () => { try { localStorage.setItem('vobaca-ui', UI === 'en' ? 'es' : 'en'); } catch (e) {} location.reload(); };
+
 </script>
 </body>
 </html>

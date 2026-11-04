@@ -1,0 +1,177 @@
+/* Vobaca Proxies · script para la web oficial de Takara Tomy
+   Lo carga el marcador «Vobaca». Funciona en tres modos:
+   1. Sin nada más: lee el mazo oficial abierto (o pide un código) y lo manda a Vobaca Proxies.
+   2. #vobaca=… con a:'img': dibuja la imagen del mazo con las cartas reales.
+   3. #vobaca=… con a:'build': rellena el constructor oficial con el mazo para guardarlo y obtener un código oficial. */
+(function () {
+  var ME = document.currentScript && document.currentScript.src;
+  var HOME = ME ? new URL('./', ME).href : '';
+  var BASE = 'https://www.takaratomy.co.jp/products/haikyuvobacabreak/';
+  var ORANGE = '#e8631c';
+  var BTN = 'padding:10px 16px;border-radius:8px;font-weight:700;text-decoration:none;font-size:15px;cursor:pointer;';
+  var B1 = BTN + 'border:0;background:' + ORANGE + ';color:#fff';
+  var B2 = BTN + 'border:1px solid #ccc;background:#fff;color:#111';
+  var esc = function (s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+  var b64u = function (str) { var b = new TextEncoder().encode(str), bin = ''; b.forEach(function (x) { bin += String.fromCharCode(x); }); return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
+  var unb64u = function (s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; var bin = atob(s); return new TextDecoder().decode(Uint8Array.from(bin, function (ch) { return ch.charCodeAt(0); })); };
+
+  function box(inner) {
+    var old = document.getElementById('vbx'); if (old) old.remove();
+    var d = document.createElement('div'); d.id = 'vbx';
+    d.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px;font:16px/1.4 system-ui,sans-serif';
+    d.innerHTML = '<div style="background:#fff;color:#111;border-radius:12px;padding:16px;width:100%;max-width:560px;max-height:calc(100vh - 32px);overflow:auto;display:grid;gap:10px;box-sizing:border-box">' + inner + '</div>';
+    document.body.appendChild(d);
+    var z = d.querySelector('[data-close]'); if (z) z.onclick = function () { d.remove(); };
+    return d;
+  }
+  var closeBtn = '<button data-close style="' + B2 + '">Cerrar</button>';
+  function fail(msg) { box('<b>Vobaca Proxies</b><span>' + esc(msg) + '</span><div style="display:flex;justify-content:flex-end">' + closeBtn + '</div>'); }
+
+  if (!/takaratomy\.co\.jp$/.test(location.hostname)) { alert('Usa el marcador en la web oficial de Vobaca (takaratomy.co.jp).'); return; }
+
+  var payload = null;
+  var hm = location.hash.match(/vobaca=([A-Za-z0-9_-]+)/);
+  if (hm) { try { payload = JSON.parse(unb64u(hm[1])); } catch (e) { payload = null; } }
+
+  // ---------- Todas las cartas japonesas (para el constructor) ----------
+  function allCards() {
+    var url = BASE + 'cardlist/itemsearch.php?para=normal%2Cp%2Ca&p=';
+    return fetch(url + 1).then(function (r) { return r.json(); }).then(function (first) {
+      var pages = Math.ceil(first.count / Math.max(1, first.items.length)), reqs = [];
+      for (var p = 2; p <= pages; p++) reqs.push(fetch(url + p).then(function (r) { return r.json(); }));
+      return Promise.all(reqs).then(function (rest) {
+        var all = first.items; rest.forEach(function (x) { all = all.concat(x.items || []); });
+        return all;
+      });
+    });
+  }
+
+  // ---------- Modo 2: imagen del mazo ----------
+  function drawImage(P) {
+    var d = box('<b>Preparando la imagen del mazo…</b>');
+    var url = function (id) { return BASE + (id.indexOf('-EN-') > 0 ? 'english/' : '') + 'cardlist/card/' + id + '.webp'; };
+    var ids = [];
+    P.secs.forEach(function (s) { s[3].forEach(function (r) { if (ids.indexOf(r[0]) < 0) ids.push(r[0]); }); });
+    var imgs = {};
+    return Promise.all(ids.map(function (id) {
+      return new Promise(function (res) { var im = new Image(); im.onload = function () { imgs[id] = im; res(); }; im.onerror = function () { res(); }; im.src = url(id); });
+    })).then(function () {
+      var W = 1200, PAD = 40, COLS = 8, TW = (W - PAD * 2 - (COLS - 1) * 12) / COLS, TH = TW * 88 / 63, FN = 'system-ui,"Segoe UI",Roboto,sans-serif';
+      var H = 200; P.secs.forEach(function (s) { H += 60 + Math.ceil(s[3].length / COLS) * (TH + 44); }); H += 50;
+      var cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+      var g = cv.getContext('2d'); g.textBaseline = 'top';
+      var rr = function (x, y, w, h, r) { g.beginPath(); if (g.roundRect) g.roundRect(x, y, w, h, r); else g.rect(x, y, w, h); };
+      var fit = function (t, w) { var s = t; while (g.measureText(s + (s !== t ? '…' : '')).width > w && s.length > 2) s = s.slice(0, -1); return s + (s !== t ? '…' : ''); };
+      g.fillStyle = '#f4f5f7'; g.fillRect(0, 0, W, H);
+      g.fillStyle = '#1b2330'; g.fillRect(0, 0, W, 170); g.fillStyle = ORANGE; g.fillRect(0, 170, W, 6);
+      g.fillStyle = '#fff'; g.font = '700 54px ' + FN; g.fillText(fit(P.name || 'Mazo', W - PAD * 2), PAD, 30);
+      g.font = '500 26px ' + FN; g.fillStyle = '#c9d1dc'; g.fillText(P.st || '', PAD, 98);
+      g.font = '500 22px ' + FN; g.fillStyle = '#9aa5b4'; g.fillText(P.rl || '', PAD, 134);
+      var y = 200;
+      P.secs.forEach(function (s) {
+        var title = s[0], muted = s[1], sub = s[2], rows = s[3];
+        g.fillStyle = muted ? '#5f6a7a' : '#1b2330'; g.font = '700 34px ' + FN; g.fillText(title.toUpperCase(), PAD, y);
+        var tw = g.measureText(title.toUpperCase()).width;
+        g.font = '500 22px ' + FN; g.fillStyle = '#5f6a7a'; g.fillText(sub, PAD + tw + 16, y + 9); y += 54;
+        rows.forEach(function (r, i) {
+          var X = PAD + (i % COLS) * (TW + 12), Y = y + Math.floor(i / COLS) * (TH + 44);
+          g.save(); rr(X, Y, TW, TH, 8); g.clip();
+          if (imgs[r[0]]) g.drawImage(imgs[r[0]], X, Y, TW, TH); else { g.fillStyle = '#d3d8e0'; g.fillRect(X, Y, TW, TH); }
+          g.restore();
+          g.font = '700 24px ' + FN; var bt = '×' + r[1], bw = Math.max(36, g.measureText(bt).width + 18);
+          g.fillStyle = ORANGE; rr(X + TW - bw - 4, Y + 4, bw, 34, 17); g.fill();
+          g.fillStyle = '#fff'; g.textAlign = 'center'; g.fillText(bt, X + TW - 4 - bw / 2, Y + 9); g.textAlign = 'left';
+          g.fillStyle = '#1b2330'; g.font = '600 17px ' + FN; g.fillText(fit(r[2] || r[0], TW), X, Y + TH + 6);
+          g.fillStyle = '#5f6a7a'; g.font = '500 15px ' + FN; g.fillText(fit(r[3] || '', TW), X, Y + TH + 26);
+        });
+        y += Math.ceil(rows.length / COLS) * (TH + 44) + 6;
+      });
+      g.fillStyle = '#9aa5b4'; g.font = '500 18px ' + FN; g.fillText('Vobaca Proxies · ' + new Date().toLocaleDateString('es-ES'), PAD, H - 34);
+      var fname = (String(P.name || '').replace(/[\\/:*?"<>|]+/g, '').trim() || 'mazo') + '.png';
+      return new Promise(function (res) { cv.toBlob(res, 'image/png'); }).then(function (blob) {
+        var u = URL.createObjectURL(blob), miss = ids.length - Object.keys(imgs).length;
+        d = box('<b>Imagen del mazo</b>' + (miss ? '<span style="color:#b9770e;font-size:14px">' + miss + ' imágenes no se han podido cargar.</span>' : '') +
+          '<span style="font-size:13px;color:#555">Mantén pulsada la imagen para guardarla, o usa los botones.</span>' +
+          '<img src="' + u + '" style="width:100%;border:1px solid #ccc;border-radius:8px">' +
+          '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button id="vbs" style="' + B2 + '">Compartir</button><a id="vbd" style="' + B1 + '">Descargar</a>' + closeBtn + '</div>');
+        var a = d.querySelector('#vbd'); a.href = u; a.download = fname;
+        var file = new File([blob], fname, { type: 'image/png' }), sb = d.querySelector('#vbs');
+        if (!(navigator.canShare && navigator.canShare({ files: [file] }))) sb.style.display = 'none';
+        sb.onclick = function () { navigator.share({ files: [file], title: P.name || 'Mazo' }).catch(function () {}); };
+      });
+    });
+  }
+
+  // ---------- Modo 3: rellenar el constructor oficial ----------
+  function findVm() {
+    var el = document.getElementById('app');
+    var c = el && el._vnode && el._vnode.component;
+    return c && c.proxy && c.proxy.deck ? c.proxy : null;
+  }
+  function waitVm(ms) {
+    var t0 = Date.now();
+    return new Promise(function (res, rej) {
+      (function poll() { var vm = findVm(); if (vm) return res(vm); if (Date.now() - t0 > ms) return rej(new Error('no se encuentra el constructor')); setTimeout(poll, 250); })();
+    });
+  }
+  function build(P) {
+    if (!/\/deck\/edit\.html/.test(location.pathname)) { location.href = BASE + 'deck/edit.html' + location.hash; return; }
+    box('<b>Cargando el mazo en el constructor oficial…</b><span style="font-size:14px;color:#555">Tarda unos segundos.</span>');
+    return Promise.all([waitVm(15000), allCards()]).then(function (res) {
+      var vm = res[0], all = res[1], idx = {}, byNo = {};
+      all.forEach(function (c) { idx[c.card_no + '-' + c.image_end] = c; if (!byNo[c.card_no]) byNo[c.card_no] = c; });
+      var cards = [], missing = [], now = new Date().toISOString();
+      P.b.forEach(function (e) {
+        var id = e[0], n = e[1], role = e[2] || '';
+        var c = idx[id] || byNo[id.replace(/-[A-Z]{1,3}$/, '')];
+        if (!c) { missing.push(id); return; }
+        for (var k = 0; k < n && cards.length < 50; k++) cards.push({ card_no: c.card_no, image_end: c.image_end, category: c.category, vobarity: c.vobarity, voba_order: c.voba_order, product_order: c.product_order, added_at: now, selectedCategory: c.category === 'EVENT' ? '' : role, selected: false });
+      });
+      vm.deck.cards = cards;
+      vm.deck.name = String(P.name || '').slice(0, 40);
+      vm.deck.updated_at = now;
+      var ev = cards.filter(function (c) { return c.category === 'EVENT'; }).length;
+      var ok = cards.length === 40 && ev <= 8;
+      var d = box('<b>Mazo cargado en el constructor oficial</b>' +
+        '<span>' + cards.length + ' cartas · ' + ev + ' eventos' + (missing.length ? ' · <span style="color:#b9770e">no encontradas: ' + esc(missing.join(', ')) + '</span>' : '') + '</span>' +
+        (ok ? '<span>Revisa el mazo y pulsa el botón de guardar de la web (<b>デッキの保存</b>). Te dará el <b>código oficial</b> del mazo.</span>'
+          : '<span style="color:#b00">La web oficial solo deja guardar mazos de <b>40 cartas</b> con <b>8 eventos como máximo</b>. Ajusta el mazo aquí mismo o en Vobaca Proxies antes de guardar.</span>') +
+        '<span style="font-size:13px;color:#555">Opcional: en «デッキ情報を追加» puedes poner autor y etiquetas. Marca «デッキ検索に掲載する» solo si quieres que salga en la búsqueda pública.</span>' +
+        '<div style="display:flex;justify-content:flex-end"><button data-close style="' + B1 + '">Entendido</button></div>');
+    }).catch(function (e) { fail('No se ha podido cargar el mazo en el constructor: ' + e.message); });
+  }
+
+  // ---------- Modo 1: mazo oficial → Vobaca Proxies ----------
+  function importOfficial() {
+    var k = (location.search.match(/deck_key=([A-Za-z0-9]+)/) || [])[1] || prompt('Código de mazo oficial de Vobaca');
+    if (!k) return;
+    k = ((k.match(/deck_key=([A-Za-z0-9]+)/) || [])[1] || k).trim();
+    return fetch(BASE + 'deck/get_deck.php?deck_key=' + encodeURIComponent(k)).then(function (r) { return r.json(); }).then(function (j) {
+      if (!j.success || !j.deck) { fail('No existe ningún mazo con el código ' + k); return; }
+      var m = {}, o = [];
+      j.deck.cards.forEach(function (c) {
+        var ro = (c.category !== 'EVENT' && c.role && c.role !== 'フリー') ? ' ' + c.role : '';
+        var id = c.card_no + '-' + c.image_end + ro;
+        if (!m[id]) { m[id] = 0; o.push(id); } m[id]++;
+      });
+      var t = '# ' + (j.deck.name || k) + '\n' + o.map(function (id) { return m[id] + ' ' + id; }).join('\n');
+      var d = box('<b>' + j.deck.cards.length + ' cartas · «' + esc(j.deck.name || k) + '»</b>' +
+        (HOME ? '<span style="font-size:14px;color:#555">Pulsa «Abrir en Vobaca Proxies» para cargarlo como mazo nuevo, o copia la lista.</span>' : '') +
+        '<textarea readonly style="width:100%;height:180px;font:13px monospace;border:1px solid #ccc;border-radius:8px;padding:8px;box-sizing:border-box"></textarea>' +
+        '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><span id="vbm" style="margin-right:auto;align-self:center;color:' + ORANGE + '"></span>' +
+        '<button id="vbc" style="' + B2 + '">Copiar</button>' + (HOME ? '<a id="vbo" style="' + B1 + '">Abrir en Vobaca Proxies</a>' : '') + closeBtn + '</div>');
+      var ta = d.querySelector('textarea'); ta.value = t;
+      if (HOME) d.querySelector('#vbo').href = HOME + '#vbimp=' + b64u(t);
+      d.querySelector('#vbc').onclick = function () {
+        var msg = d.querySelector('#vbm');
+        (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { msg.textContent = '¡Copiada!'; }, function () {
+          ta.focus(); ta.select(); ta.setSelectionRange(0, t.length);
+          try { document.execCommand('copy'); msg.textContent = '¡Copiada!'; } catch (e) { msg.textContent = 'Selecciónala y cópiala'; }
+        });
+      };
+    });
+  }
+
+  var run = !payload ? importOfficial() : payload.a === 'img' ? drawImage(payload) : payload.a === 'build' ? build(payload) : (fail('Este enlace no es de Vobaca Proxies.'), null);
+  if (run && run.catch) run.catch(function (e) { fail('Error: ' + e.message); });
+})();

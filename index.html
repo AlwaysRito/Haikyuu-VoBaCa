@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Vobaca Proxies</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1b2330">
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Vobaca">
+
 <style>
   body{margin:0;min-height:100vh;display:grid;place-items:center;background:#1b2330;color:#fff;font:16px/1.5 system-ui,sans-serif;padding:16px;box-sizing:border-box}
   main{max-width:420px;text-align:center}
@@ -20,6 +28,8 @@
 <script>
 // Abre la versión más reciente de la herramienta que haya en el repositorio (vobaca-proxies-vX.Y.html).
 // Así basta con subir el archivo nuevo: este enlace siempre lleva a la última versión.
+// Para poder instalarla como app (y abrirla sin conexión)
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
 (async () => {
   const hash = location.hash;   // conserva #vbimp=… (mazos enviados por el marcador)
   const go = f => location.replace(f + hash);

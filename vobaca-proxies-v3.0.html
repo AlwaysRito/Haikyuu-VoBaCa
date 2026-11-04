@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- Vobaca Proxies v3.1 · etiquetas que se crean una vez y se ponen con un toque · selector de mazos agrupado por etiquetas -->
+<!-- Vobaca Proxies v3.2 · guardar el mazo y versiones · cartas relacionadas · mano inicial por roles · aviso de versión nueva -->
 <title>Vobaca Proxies</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#1b2330">
@@ -72,7 +72,8 @@ dialog.info{width:min(720px,calc(100vw - 24px));max-height:calc(100dvh - 24px);o
 .infobody{display:grid;grid-template-columns:minmax(0,220px) minmax(0,1fr);gap:16px}
 @media (max-width:560px){.infobody{grid-template-columns:1fr}.infobody .pcard{max-width:240px;width:100%;justify-self:center}}
 .infobody img{width:100%;border-radius:8px;aspect-ratio:63/88;object-fit:cover;background:var(--line)}
-.infobody .pcard{align-self:start;aspect-ratio:63/88;position:sticky;top:0;z-index:1}
+.infobody .pcard{align-self:start;aspect-ratio:63/88}
+@media (min-width:561px){.infobody .pcard{position:sticky;top:0;z-index:1}}
 .infobody .pcard img{display:block;height:100%}
 .itext{min-width:0;display:grid;gap:8px;align-content:start}
 .itext h2{margin:0}
@@ -398,6 +399,26 @@ dialog.mt-dlg{width:min(720px,calc(100vw - 16px));max-height:calc(100dvh - 16px)
 .tg-man div{display:flex;gap:8px;align-items:center;border-top:1px solid var(--line);padding:6px 0;font-size:14px}
 .tg-man span{flex:1}
 .tg-man small{color:var(--muted)}
+.sv-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.sv-state{flex:1 1 100%;font-size:13px;color:var(--muted)}
+.sv-row .btn{flex:1 1 0}
+.sv-state.dirty{color:#b9770e;font-weight:600}
+.sv-row .btn{padding:8px 14px}
+.vs-row{display:grid;gap:6px;border-top:1px solid var(--line);padding:8px 0}
+.vs-row b{display:block;font-size:14px}
+.vs-row small{display:block;color:var(--muted);font-size:12px}
+.vs-note{width:100%;box-sizing:border-box;margin-top:4px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);font:inherit;font-size:13px}
+.vs-acts{display:flex;gap:14px;flex-wrap:wrap}
+.irel{margin-top:8px}
+.rel-h{font-size:12px;color:var(--muted);margin:8px 0 4px;text-transform:uppercase;letter-spacing:.06em;font-weight:700}
+.rel-row{display:flex;gap:6px;flex-wrap:wrap}
+.rel-chip{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:6px;align-items:center;text-align:left;border:1px solid var(--line);background:var(--panel);color:var(--fg);border-radius:8px;padding:3px 8px 3px 3px;cursor:pointer;max-width:100%}
+.rel-chip img{grid-row:1/3;width:26px;aspect-ratio:63/88;object-fit:cover;border-radius:3px;background:var(--line)}
+.rel-chip span{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rel-chip small{font-size:11px;color:var(--muted)}
+.upd-bar{position:fixed;top:0;left:0;right:0;z-index:60;background:#1b2330;color:#fff;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;padding:8px 12px;font-size:14px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+.upd-bar .btn{padding:6px 12px;min-height:0}
+.upd-bar .x{background:none;border:0;color:#9aa5b4;font-size:18px;cursor:pointer}
 .dk-foot .syerr{border-color:#c0392b;color:#c0392b}
 .hint{max-width:60ch;color:var(--muted);font-size:14px;text-align:center;margin:0}
 
@@ -413,9 +434,10 @@ dialog.mt-dlg{width:min(720px,calc(100vw - 16px));max-height:calc(100dvh - 16px)
 </style>
 </head>
 <body>
+<div class="upd-bar" id="updBar" hidden><span id="updTxt"></span><button class="btn" id="updGo" type="button">Actualizar</button><button class="x" id="updX" type="button" aria-label="Cerrar">✕</button></div>
 <header>
   <div class="top">
-    <h1>Vobaca <span>Proxies</span> <small class="ver" title="Versión de la herramienta">v3.1</small></h1>
+    <h1>Vobaca <span>Proxies</span> <small class="ver" title="Versión de la herramienta">v3.2</small></h1>
     <div class="topr">
       <div class="seg" role="group" aria-label="Idioma de las cartas">
         <button type="button" id="langJP" aria-pressed="true">JP</button><button type="button" id="langEN" aria-pressed="false">EN</button>
@@ -468,6 +490,7 @@ dialog.mt-dlg{width:min(720px,calc(100vw - 16px));max-height:calc(100dvh - 16px)
     </div>
   </div>
   <input id="dkName" class="dk-name" placeholder="Nombre del mazo" maxlength="60" autocomplete="off">
+  <div class="sv-row"><span class="sv-state" id="svState"></span><button class="btn ghost" id="svHist" type="button">Versiones</button><button class="btn" id="svSave" type="button">Guardar</button></div>
   <div class="dk-meta"><button class="linkbtn" id="dkFav" type="button">☆ Marcar como favorito</button></div>
   <div class="dk-tags" id="dkTags" aria-label="Etiquetas del mazo"></div>
   <div class="dk-sum">
@@ -559,6 +582,7 @@ dialog.mt-dlg{width:min(720px,calc(100vw - 16px));max-height:calc(100dvh - 16px)
       <div class="iann" id="iAnn"></div>
       <p class="irole" id="iRole" hidden></p>
       <p class="imeta-pub" id="iMetaPub" hidden></p>
+      <div class="irel" id="iRel" hidden></div>
       <details class="ien" id="iEnBox"><summary>Texto oficial en inglés</summary><div class="iskill" id="iEnSkill"></div><div class="iann" id="iEnAnn"></div></details>
       <div class="trbox" id="iTrBox">
         <div class="trhead">
@@ -660,6 +684,14 @@ dialog.mt-dlg{width:min(720px,calc(100vw - 16px));max-height:calc(100dvh - 16px)
     <button class="btn ghost" id="pubRefresh" type="button">Actualizar desde la web oficial</button>
     <button class="btn" id="pubClose" type="button">Cerrar</button>
   </div>
+</dialog>
+
+<dialog id="vsDlg" class="imgdlg">
+  <h2>Versiones guardadas</h2>
+  <p class="bk-sum">Cada vez que pulsas «Guardar» se guarda una versión del mazo. Lo que cambias se sigue guardando solo como borrador, así que no pierdes nada aunque se cierre la app.</p>
+  <button class="btn ghost" id="vsDiscard" type="button" hidden>Descartar los cambios y volver a la última versión guardada</button>
+  <div id="vsList"></div>
+  <div class="row"><span class="msg"></span><button class="btn" id="vsClose" type="button">Cerrar</button></div>
 </dialog>
 
 <dialog id="dlDlg" class="imgdlg">
@@ -805,7 +837,11 @@ dialog.mt-dlg{width:min(720px,calc(100vw - 16px));max-height:calc(100dvh - 16px)
   </div>
   <p class="bk-prev" id="ptHint"></p>
   <details class="pt-prob" open>
-    <summary>Probabilidades</summary>
+    <summary>Mano inicial por roles</summary>
+    <div id="ptMc"></div>
+  </details>
+  <details class="pt-prob">
+    <summary>Probabilidades de una carta</summary>
     <label>Carta <select id="ptCard"></select></label>
     <table class="pt-tab" id="ptTab"></table>
   </details>
@@ -1726,7 +1762,7 @@ try {
 if (!decks.length) decks = [blankDeck('Mi mazo', 0)];
 decks.forEach(d => { if (!d.id) d.id = newId(); if (d.upd == null) d.upd = 0; });
 // Huella de cada mazo: si cambia al guardar, se actualiza su fecha (la sincronización se queda con la versión más reciente)
-const deckSig = d => JSON.stringify([d.name || '', d.sel || {}, d.order || [], d.roles || {}, d.mSel || {}, d.mOrder || [], d.notes || '', d.tags || [], !!d.fav]);
+const deckSig = d => JSON.stringify([d.name || '', d.sel || {}, d.order || [], d.roles || {}, d.mSel || {}, d.mOrder || [], d.notes || '', d.tags || [], !!d.fav, (d.versions || []).map(v => v.t + '|' + (v.note || ''))]);
 const SIGS = new Map();
 const resetSigs = () => { SIGS.clear(); decks.forEach(d => SIGS.set(d.id, deckSig(d))); };
 resetSigs();
@@ -1750,7 +1786,7 @@ function fixRoles() {
   Object.keys(roles).forEach(id => { if (!sel[id]) delete roles[id]; });
 }
 const save = () => {
-  decks[cur] = { id: decks[cur].id || newId(), upd: decks[cur].upd || 0, name: decks[cur].name, sel, order, roles, mSel, mOrder, notes: decks[cur].notes || '', tags: decks[cur].tags || [], fav: !!decks[cur].fav };
+  decks[cur] = { id: decks[cur].id || newId(), upd: decks[cur].upd || 0, name: decks[cur].name, sel, order, roles, mSel, mOrder, notes: decks[cur].notes || '', tags: decks[cur].tags || [], fav: !!decks[cur].fav, versions: decks[cur].versions || [] };
   let changed = false;
   decks.forEach(d => { const sg = deckSig(d); if (SIGS.get(d.id) !== sg) { if (SIGS.has(d.id)) d.upd = Date.now(); SIGS.set(d.id, sg); changed = true; } });
   try { localStorage.setItem('vobaca-decks', JSON.stringify({ cur, decks, del: DEL })); } catch (e) {}
@@ -1927,6 +1963,7 @@ function openInfo(id) {
   setupTranslation(c);
   paintInfoMeta(c);
   paintInfoRole(c);
+  paintRelated(c);
   paintInfo();
   const d = $('info'); d.showModal ? d.showModal() : d.setAttribute('open', '');
 }
@@ -2327,7 +2364,7 @@ function renderDeck() {
 $('dkSel').onchange = () => { save(); loadDeck(+$('dkSel').value); save(); renderDeck(); renderCount(); };
 $('dkName').oninput = () => { decks[cur].name = $('dkName').value; save(); const o = $('dkSel').options[cur]; if (o) o.textContent = $('dkName').value || 'Sin nombre'; };
 $('dkNew').onclick = () => { save(); decks.push(blankDeck(`Mazo ${decks.length + 1}`)); loadDeck(decks.length - 1); save(); renderDeck(); renderCount(); $('dkName').focus(); $('dkName').select(); };
-$('dkDup').onclick = () => { save(); const d = JSON.parse(JSON.stringify(decks[cur])); d.name = (d.name || 'Mazo') + ' (copia)'; d.id = newId(); d.upd = Date.now(); decks.push(d); loadDeck(decks.length - 1); save(); renderDeck(); renderCount(); };
+$('dkDup').onclick = () => { save(); const d = JSON.parse(JSON.stringify(decks[cur])); d.name = (d.name || 'Mazo') + ' (copia)'; d.id = newId(); d.upd = Date.now(); d.versions = []; decks.push(d); loadDeck(decks.length - 1); save(); renderDeck(); renderCount(); };
 $('dkDel').onclick = () => {
   if (!confirm(`¿Borrar el mazo «${decks[cur].name || 'Sin nombre'}»?`)) return;
   DEL[decks[cur].id] = Date.now();
@@ -2346,7 +2383,7 @@ $('dkCode').onclick = async () => {
 $('dkImg').onclick = () => makeDeckImage();
 
 // ---- Copia de seguridad (todos los datos de este dispositivo) ----
-const APP_VERSION = '3.1';
+const APP_VERSION = '3.2';
 const BK_KEYS = ['vobaca-decks', 'vobaca-tr', 'vobaca-lang', 'vobaca-ovl', 'vobaca-incmaybe', 'vobaca-lay', 'vobaca-trlang', 'vobaca-col', 'vobaca-onlymiss', 'vobaca-extra', 'vobaca-games', 'vobaca-autorole', 'vobaca-useen', 'vobaca-tags'];
 function buildBackup() {
   save(); saveTR(); saveLAY();
@@ -3016,7 +3053,7 @@ $('dkTest').onclick = () => {
   const nos = [...new Set(items().map(id => BY_ID[id] && BY_ID[id].no).filter(Boolean))];
   const label = no => { const c = BY_ID[order.find(id => BY_ID[id].no === no)]; const n = items().filter(id => BY_ID[id].no === no).length; return `${c.en || c.jp} (${no.replace('HV-', '')}) ×${n}`; };
   $('ptCard').innerHTML = nos.map(no => opt(no, esc(label(no)))).join('');
-  ptNew(); ptProb();
+  ptNew(); ptProb(); ptMcPaint();
   const d = $('ptDlg'); d.showModal ? d.showModal() : d.setAttribute('open', '');
 };
 $('ptClose').onclick = () => { const d = $('ptDlg'); d.close ? d.close() : d.removeAttribute('open'); };
@@ -3034,6 +3071,7 @@ const gamesOf = id => Object.entries(GAMES).filter(([, g]) => g.deck === id && !
 const pctTxt = (w, n) => n ? Math.round(w / n * 100) + ' %' : '–';
 function renderDeckExtra() {
   if (!decks[cur]) return;
+  paintSaveState();
   paintDeckMeta();
   renderDeckStats();
   if (document.activeElement !== $('dkNotes')) $('dkNotes').value = decks[cur].notes || '';
@@ -3142,14 +3180,15 @@ $('pubTabM').onclick = () => setPubTab('meta');
 // ---- Comparar mazos (las distintas versiones de una carta cuentan como la misma) ----
 const deckCounts = d => { const m = {}; Object.entries(d.sel || {}).forEach(([id, n]) => { const no = BY_ID[id] ? BY_ID[id].no : id; m[no] = (m[no] || 0) + n; }); return m; };
 const pubCounts = d => { const m = {}; d[7].forEach(([k, n]) => { const no = noOfKey(k); m[no] = (m[no] || 0) + n; }); return m; };
-let CMP_PUB = null;
+let CMP_PUB = null, CMP_VER = null;
 function cmpSource(v) {
   if (v === 'pub' && CMP_PUB) return { name: pubName(CMP_PUB) + ' (público)', counts: pubCounts(CMP_PUB) };
+  if (v === 'ver' && CMP_VER) return { name: CMP_VER.name, counts: deckCounts(CMP_VER.snap) };
   const d = decks[+v]; if (!d) return { name: '', counts: {} };
   return { name: d.name || 'Sin nombre', counts: deckCounts(d) };
 }
 function fillCmpSelects(a, b) {
-  const opts = decks.map((d, i) => opt(i, esc(d.name || 'Sin nombre'))).join('') + (CMP_PUB ? opt('pub', esc(pubName(CMP_PUB)) + ' (público)') : '');
+  const opts = decks.map((d, i) => opt(i, esc(d.name || 'Sin nombre'))).join('') + (CMP_PUB ? opt('pub', esc(pubName(CMP_PUB)) + ' (público)') : '') + (CMP_VER ? opt('ver', esc(CMP_VER.name) + ' (guardada)') : '');
   $('cmpA').innerHTML = opts; $('cmpB').innerHTML = opts;
   $('cmpA').value = a; $('cmpB').value = b;
 }
@@ -3809,11 +3848,176 @@ $('mtSave').onclick = () => {
 };
 $('dkMatch').onclick = openMatch;
 
+// ---- Cartas relacionadas: las que nombra esta habilidad y las que la nombran ----
+let REL = null;   // nombre japonés -> números de carta que lo nombran
+function relIndex() {
+  if (REL) return REL;
+  REL = {};
+  const seen = new Set();
+  CARDS.forEach(c => {
+    if (c.lang === 'en' || seen.has(c.no)) return; seen.add(c.no);
+    const t = ((c.info && c.info.sk) || '') + ' ' + ((c.info && c.info.an) || '');
+    new Set([...t.matchAll(/「([^」]+)」/g)].map(x => x[1])).forEach(n => { (REL[n] = REL[n] || []).push(c.no); });
+  });
+  return REL;
+}
+const namesIn = c => { const b = JP_BASE[c.no] || c, t = ((b.info && b.info.sk) || '') + ' ' + ((b.info && b.info.an) || ''); return [...new Set([...t.matchAll(/「([^」]+)」/g)].map(x => x[1]))].filter(n => n !== b.jp); };
+const enNameOf = jp => { const c = CARDS.find(x => x.jp === jp && x.lang !== 'en'); return c && c.en ? c.en : jp; };
+function paintRelated(c) {
+  const box = $('iRel');
+  if (!c) { box.hidden = true; return; }
+  const base = JP_BASE[c.no] || c, idx = relIndex();
+  const names = namesIn(c);
+  const by = [...new Set((idx[base.jp] || []).filter(no => no !== c.no))];
+  if (!names.length && !by.length) { box.hidden = true; return; }
+  const chip = (label, sub, onclick, img) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'rel-chip'; b.innerHTML = (img ? `<img alt="" loading="lazy" src="${imgOf(img)}">` : '') + '<span></span>' + (sub ? '<small></small>' : ''); b.querySelector('span').textContent = label; if (sub) b.querySelector('small').textContent = sub; b.onclick = onclick; return b; };
+  box.innerHTML = '';
+  if (names.length) {
+    const h = document.createElement('p'); h.className = 'rel-h'; h.textContent = 'Su habilidad nombra a'; box.appendChild(h);
+    const row = document.createElement('div'); row.className = 'rel-row';
+    names.forEach(n => { const ids = CARDS.filter(x => x.jp === n && x.lang !== 'en' && !x.par); row.appendChild(chip(enNameOf(n), `${ids.length} ${ids.length === 1 ? 'carta' : 'cartas'}`, () => { const d = $('info'); d.close ? d.close() : d.removeAttribute('open'); $('q').value = n; $('inSkill').checked = false; $('ver').value = 'normal'; setLang('jp'); setView('cards'); window.scrollTo(0, 0); }, ids[0] && ids[0].id)); });
+    box.appendChild(row);
+  }
+  if (by.length) {
+    const h = document.createElement('p'); h.className = 'rel-h'; h.textContent = `La nombran ${by.length} ${by.length === 1 ? 'carta' : 'cartas'}`; box.appendChild(h);
+    const row = document.createElement('div'); row.className = 'rel-row';
+    by.slice(0, 24).forEach(no => { const x = JP_BASE[no]; if (!x) return; row.appendChild(chip(x.en || x.jp, no.replace('HV-', '') + (x.ev ? ' · evento' : '') + (sel[x.id] ? ' · en tu mazo' : ''), () => openInfo(x.id), x.id)); });
+    box.appendChild(row);
+  }
+  box.hidden = false;
+}
+
+// ---- Probar la mano inicial por roles (simulación) ----
+const MC_ROLES = [['レシーブ', 'Recepción'], ['トス', 'Colocación'], ['アタック', 'Ataque'], ['ブロック', 'Bloqueo'], ['サーブ', 'Saque']];
+function mcRun(N = 20000) {
+  const pool = [];
+  order.forEach(id => { const c = BY_ID[id]; if (!c) return; if (c.ev) { for (let i = 0; i < sel[id]; i++) pool.push('E'); return; } Object.entries(roles[id] || { '': sel[id] }).forEach(([k, n]) => { for (let i = 0; i < n; i++) pool.push(k); }); });
+  const need = ['レシーブ', 'トス', 'アタック'].filter(k => pool.includes(k));
+  const has = {}, hasM = {}; MC_ROLES.forEach(([k]) => { has[k] = 0; hasM[k] = 0; });
+  let full = 0, fullM = 0, ev = 0;
+  const draw = (deck, n) => { for (let i = 0; i < n; i++) { const j = i + Math.floor(Math.random() * (deck.length - i)); [deck[i], deck[j]] = [deck[j], deck[i]]; } return deck.slice(0, n); };
+  for (let s2 = 0; s2 < N; s2++) {
+    const deck = pool.slice();
+    let hand = draw(deck, HAND);
+    const ok = h => need.every(k => h.includes(k));
+    MC_ROLES.forEach(([k]) => { if (hand.includes(k)) has[k]++; });
+    ev += hand.filter(x => x === 'E').length;
+    if (ok(hand)) { full++; fullM++; MC_ROLES.forEach(([k]) => { if (hand.includes(k)) hasM[k]++; }); continue; }
+    // Robo de nuevo: se quedan las cartas de los roles que faltan cubrir (una de cada) y se devuelve el resto
+    const keep = []; need.forEach(k => { const i = hand.indexOf(k); if (i >= 0) keep.push(k); });
+    const rest = deck.slice(); keep.forEach(k => rest.splice(rest.indexOf(k), 1));
+    hand = keep.concat(draw(rest, HAND - keep.length));
+    if (ok(hand)) fullM++;
+    MC_ROLES.forEach(([k]) => { if (hand.includes(k)) hasM[k]++; });
+  }
+  return { N, need, has, hasM, full: full / N, fullM: fullM / N, ev: ev / N, size: pool.length };
+}
+function ptMcPaint() {
+  const r = mcRun(), pct = x => Math.round(x * 100) + ' %';
+  if (!r.need.length) { $('ptMc').innerHTML = '<p class="st-note">Pon roles a tus personajes (por ejemplo con «Asignar roles automáticamente») para ver esto.</p>'; return; }
+  const cnt = k => order.reduce((t, id) => t + ((roles[id] || {})[k] || 0), 0);
+  $('ptMc').innerHTML = `<table class="pt-tab"><tr><td><b>Mano con ${r.need.map(k => ROLE_ES[k]).join(', ')}</b></td><td>${pct(r.full)}</td></tr>
+    <tr><td><b>…con el robo de nuevo</b><small style="display:block;color:var(--muted)">guardando una carta de cada rol que ya tengas y devolviendo el resto</small></td><td>${pct(r.fullM)}</td></tr>
+    ${MC_ROLES.filter(([k]) => cnt(k)).map(([k, es]) => `<tr><td>Al menos una de ${es} <small style="color:var(--muted)">(${cnt(k)} en el mazo)</small></td><td>${pct(r.has[k] / r.N)}</td></tr>`).join('')}
+    <tr><td colspan="2" style="color:var(--muted);font-size:13px">Simulación de ${r.N.toLocaleString('es-ES')} manos iniciales de ${HAND} cartas. Media de eventos en la mano: ${(Math.round(r.ev * 10) / 10).toLocaleString('es-ES')}.</td></tr></table>`;
+}
+
+// ---- Guardar el mazo y versiones guardadas ----
+// Lo que haces se guarda solo como borrador; «Guardar» crea una versión con fecha a la que puedes volver
+const snapOf = d => ({ name: d.name || '', sel: d.sel || {}, order: d.order || [], roles: d.roles || {}, mSel: d.mSel || {}, mOrder: d.mOrder || [] });
+const snapSig = x => JSON.stringify([x.sel, x.order, x.roles, x.mSel, x.mOrder]);
+const versionsOf = d => Array.isArray(d.versions) ? d.versions : [];
+const lastVersion = d => versionsOf(d)[0] || null;
+function paintSaveState() {
+  const d = decks[cur]; if (!d) return;
+  const lv = lastVersion(d), dirty = !lv || snapSig(snapOf(d)) !== snapSig(lv.snap);
+  const total = Object.values(d.sel || {}).reduce((a, b) => a + b, 0) + Object.values(d.mSel || {}).reduce((a, b) => a + b, 0);
+  $('svState').textContent = !lv ? (total ? 'Sin guardar todavía' : '') : dirty ? `Cambios sin guardar · última versión: ${new Date(lv.t).toLocaleString('es-ES', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' })}` : `Guardado · ${new Date(lv.t).toLocaleString('es-ES', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
+  $('svState').className = 'sv-state' + (dirty && total ? ' dirty' : '');
+  $('svSave').disabled = !dirty || !total;
+  $('svHist').textContent = versionsOf(d).length ? `Versiones (${versionsOf(d).length})` : 'Versiones';
+}
+function saveVersion(note) {
+  save();
+  const d = decks[cur];
+  d.versions = [{ t: Date.now(), note: note || '', snap: JSON.parse(JSON.stringify(snapOf(d))) }, ...versionsOf(d)].slice(0, 30);
+  save(); paintSaveState();
+}
+$('svSave').onclick = () => { saveVersion(''); toast(`Mazo guardado (versión ${versionsOf(decks[cur]).length}). Puedes ponerle una nota en «Versiones».`); };
+const vCounts = x => { const m = {}; Object.entries(x.sel || {}).forEach(([id, n]) => { const no = BY_ID[id] ? BY_ID[id].no : id; m[no] = (m[no] || 0) + n; }); return m; };
+function vDiff(a, b) { const A = vCounts(a), B = vCounts(b); let plus = 0, minus = 0; new Set([...Object.keys(A), ...Object.keys(B)]).forEach(no => { const d2 = (B[no] || 0) - (A[no] || 0); if (d2 > 0) plus += d2; else minus -= d2; }); return { plus, minus }; }
+function renderVersions() {
+  const d = decks[cur], vs = versionsOf(d), now = snapOf(d), box = $('vsList');
+  box.innerHTML = vs.length ? '' : '<p class="hint" style="text-align:left">Aún no has guardado ninguna versión de este mazo. Pulsa «Guardar» cuando te guste cómo está.</p>';
+  vs.forEach((v, i) => {
+    const n = Object.values(v.snap.sel || {}).reduce((a, b) => a + b, 0), df = vDiff(v.snap, now);
+    const row = document.createElement('div'); row.className = 'vs-row';
+    row.innerHTML = `<div><b></b><small></small><input class="vs-note" maxlength="80" placeholder="Nota (por ejemplo: «más recepción contra Karasuno»)"></div>
+      <div class="vs-acts"><button class="linkbtn" type="button" data-a="cmp">Comparar</button><button class="linkbtn" type="button" data-a="res">Volver a esta</button><button class="linkbtn" type="button" data-a="del">Borrar</button></div>`;
+    row.querySelector('b').textContent = `Versión ${vs.length - i} · ${new Date(v.t).toLocaleString('es-ES', { day: 'numeric', month: 'numeric', year: '2-digit', hour: '2-digit', minute: '2-digit' })}`;
+    row.querySelector('small').textContent = `${n} cartas` + (df.plus || df.minus ? ` · respecto al mazo de ahora: +${df.plus} / −${df.minus}` : ' · igual que el mazo de ahora');
+    const ni = row.querySelector('.vs-note'); ni.value = v.note || '';
+    ni.addEventListener('change', () => { v.note = ni.value.trim(); d.upd = Date.now(); SIGS.delete(d.id); save(); });
+    row.querySelector('[data-a="cmp"]').onclick = () => { CMP_VER = { name: `Versión ${vs.length - i}`, snap: v.snap }; closeVersions(); openCmp('ver'); $('cmpA').value = 'ver'; $('cmpB').value = String(cur); renderCmp(); };
+    row.querySelector('[data-a="res"]').onclick = () => {
+      if (!confirm(`¿Volver a la versión ${vs.length - i}? El mazo de ahora se guarda antes como versión, por si quieres recuperarlo.`)) return;
+      if (snapSig(now) !== snapSig(lastVersion(d) ? lastVersion(d).snap : {})) saveVersion('antes de volver a la versión ' + (vs.length - i));
+      const s2 = JSON.parse(JSON.stringify(v.snap));
+      applyImported(s2.sel, s2.order, s2.roles, s2.name, s2.mSel, s2.mOrder);
+      saveVersion('vuelta a la versión ' + (vs.length - i));
+      closeVersions(); renderDeck(); toast('Mazo restaurado.');
+    };
+    row.querySelector('[data-a="del"]').onclick = () => { if (!confirm('¿Borrar esta versión guardada?')) return; d.versions = vs.filter(x => x !== v); d.upd = Date.now(); SIGS.delete(d.id); save(); renderVersions(); paintSaveState(); };
+    box.appendChild(row);
+  });
+  const lv = lastVersion(d);
+  $('vsDiscard').hidden = !lv || snapSig(now) === snapSig(lv.snap);
+}
+function openVersions() { save(); renderVersions(); const dd = $('vsDlg'); dd.showModal ? dd.showModal() : dd.setAttribute('open', ''); }
+const closeVersions = () => { const dd = $('vsDlg'); dd.close ? dd.close() : dd.removeAttribute('open'); };
+$('svHist').onclick = openVersions;
+$('vsClose').onclick = closeVersions;
+$('vsDiscard').onclick = () => {
+  const lv = lastVersion(decks[cur]); if (!lv || !confirm('¿Descartar los cambios y volver a la última versión guardada?')) return;
+  const s2 = JSON.parse(JSON.stringify(lv.snap));
+  applyImported(s2.sel, s2.order, s2.roles, s2.name, s2.mSel, s2.mOrder);
+  closeVersions(); renderDeck(); toast('Cambios descartados.');
+};
+
+// ---- Aviso de versión nueva ----
+async function checkUpdate() {
+  if (!HOSTED) return;
+  try {
+    const last = +(sessionStorage.getItem('vobaca-upd-check') || 0); if (Date.now() - last < 30 * 60000) return;
+    sessionStorage.setItem('vobaca-upd-check', String(Date.now()));
+  } catch (e) {}
+  const onGh = location.hostname.endsWith('.github.io');
+  const owner = onGh ? location.hostname.split('.')[0] : 'AlwaysRito';
+  const repo = onGh ? (location.pathname.split('/').filter(Boolean)[0] || owner + '.github.io') : 'Haikyuu-VoBaCa';
+  try {
+    const r = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/`, { cache: 'no-store' }); if (!r.ok) return;
+    const ver = f => (f.match(/v(\d+)\.(\d+)(?:\.(\d+))?\.html$/) || []).slice(1).map(x => +(x || 0));
+    const cmpV = (x, y) => { for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) - (y[i] || 0); return 0; };
+    const files = (await r.json()).map(f => f.name).filter(n => /^vobaca-proxies-v[\d.]+\.html$/.test(n));
+    if (!files.length) return;
+    const best = files.reduce((a, b) => cmpV(ver(b), ver(a)) > 0 ? b : a);
+    const mine = APP_VERSION.split('.').map(Number);
+    if (cmpV(ver(best), mine) > 0) {
+      $('updTxt').textContent = `Hay una versión nueva (v${ver(best).filter((x, i) => i < 2 || x).join('.')}).`;
+      $('updBar').hidden = false;
+      $('updGo').onclick = () => { try { localStorage.setItem('vobaca-home-latest', best); } catch (e) {} location.href = new URL(best, location.href).href; };
+    }
+  } catch (e) {}
+}
+$('updX').onclick = () => { $('updBar').hidden = true; };
+setTimeout(checkUpdate, 1500);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkUpdate(); });
+
 // ---- Sincronización con un Gist privado de GitHub ----
 const SYNC_FILE = 'vobaca-sync.json', GH_API = 'https://api.github.com';
 // JSON con las claves ordenadas, para comparar estados sin falsos cambios
 const canon = x => JSON.stringify(x, (k, v) => v && typeof v === 'object' && !Array.isArray(v) ? Object.keys(v).sort().reduce((o, kk) => (o[kk] = v[kk], o), {}) : v);
-const cleanDeck = d => ({ id: d.id, upd: d.upd || 0, name: d.name || '', sel: d.sel || {}, order: d.order || [], roles: d.roles || {}, mSel: d.mSel || {}, mOrder: d.mOrder || [], notes: d.notes || '', tags: d.tags || [], fav: !!d.fav });
+const cleanDeck = d => ({ id: d.id, upd: d.upd || 0, name: d.name || '', sel: d.sel || {}, order: d.order || [], roles: d.roles || {}, mSel: d.mSel || {}, mOrder: d.mOrder || [], notes: d.notes || '', tags: d.tags || [], fav: !!d.fav, versions: d.versions || [] });
 function mergeSync(L, R) {
   const del = { ...(R.del || {}) };
   Object.entries(L.del || {}).forEach(([k, t]) => { if (!(del[k] >= t)) del[k] = t; });

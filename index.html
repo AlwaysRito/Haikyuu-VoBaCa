@@ -38,8 +38,11 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
   let last = null;
   try { last = localStorage.getItem('vobaca-home-latest'); } catch (e) {}
   try {
-    const owner = location.hostname.split('.')[0];
-    const repo = location.pathname.split('/').filter(Boolean)[0] || owner + '.github.io';
+    // En github.io el usuario y el repositorio salen de la dirección; en otro dominio (Cloudflare, Netlify, dominio propio) se usan estos
+    const REPO_OWNER = 'AlwaysRito', REPO_NAME = 'Haikyuu-VoBaCa';
+    const onGh = location.hostname.endsWith('.github.io');
+    const owner = onGh ? location.hostname.split('.')[0] : REPO_OWNER;
+    const repo = onGh ? (location.pathname.split('/').filter(Boolean)[0] || owner + '.github.io') : REPO_NAME;
     const r = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/`, { cache: 'no-store' });
     if (!r.ok) throw new Error(r.status);
     const files = (await r.json()).map(f => f.name).filter(n => /^vobaca-proxies-v[\d.]+\.html$/.test(n));

@@ -4959,8 +4959,10 @@ function paintSync(busy) {
   $('dkBackup').classList.toggle('syerr', on && !!SY.err);
 }
 $('syConn').onclick = async () => {
-  const raw = $('syTok').value, t = raw.replace(/[^A-Za-z0-9_]/g, ''); if (!t) return;
-  if (!/^(ghp_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{40,}|gho_[A-Za-z0-9]{30,})$/.test(t)) {
+  const raw = $('syTok').value; if (!raw.trim()) return;
+  // Saca el token aunque se haya pegado con texto de más alrededor (un token clásico es «ghp_» + 36 caracteres)
+  const found = raw.match(/github_pat_[A-Za-z0-9_]{82}|gh[po]_[A-Za-z0-9]{36}/), t = found ? found[0] : raw.replace(/[^A-Za-z0-9_]/g, '');
+  if (!found) {
     $('syStat').textContent = `Eso no parece un token de GitHub: empieza por «${t.slice(0, 4)}» y tiene ${t.length} caracteres. Un token clásico empieza por «ghp_» y tiene 40. Cópialo otra vez desde GitHub con el botón de copiar.`;
     return;
   }

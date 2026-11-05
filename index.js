@@ -56,7 +56,10 @@ async function ensureSchema(env) {
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS rooms (code TEXT PRIMARY KEY, host TEXT NOT NULL, guest TEXT, invitee TEXT, created INTEGER, updated INTEGER)`),
     env.DB.prepare(`CREATE INDEX IF NOT EXISTS rooms_inv ON rooms(invitee)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS friends (a TEXT NOT NULL, b TEXT NOT NULL, ok INTEGER NOT NULL DEFAULT 0, created INTEGER, PRIMARY KEY (a, b))`),
-    env.DB.prepare(`CREATE INDEX IF NOT EXISTS friends_b ON friends(b)`)
+    env.DB.prepare(`CREATE INDEX IF NOT EXISTS friends_b ON friends(b)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS leagues (id TEXT PRIMARY KEY, name TEXT NOT NULL, owner TEXT NOT NULL, created INTEGER)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS league_members (league_id TEXT NOT NULL, user_id TEXT NOT NULL, ok INTEGER NOT NULL DEFAULT 0, invited_by TEXT, joined INTEGER, PRIMARY KEY (league_id, user_id))`),
+    env.DB.prepare(`CREATE INDEX IF NOT EXISTS lm_user ON league_members(user_id)`)
   ]);
   schemaReady = true;
 }
@@ -153,6 +156,7 @@ async function api(req, env, url) {
       env.DB.prepare('DELETE FROM userdata WHERE user_id = ?').bind(u.id),
       env.DB.prepare('DELETE FROM liga WHERE user_id = ?').bind(u.id),
       env.DB.prepare('DELETE FROM friends WHERE a = ? OR b = ?').bind(u.id, u.id),
+      env.DB.prepare('DELETE FROM league_members WHERE user_id = ?').bind(u.id),
       env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(u.id),
       env.DB.prepare('DELETE FROM users WHERE id = ?').bind(u.id)
     ]);
@@ -262,6 +266,74 @@ async function api(req, env, url) {
       if (!r.meta || !r.meta.changes) throw new HttpError(404, 'Esa solicitud ya no existe.', 'no_request');
     } else await env.DB.prepare('DELETE FROM friends WHERE (a = ? AND b = ?) OR (a = ? AND b = ?)').bind(u.id, o, o, u.id).run();
     return json({ ok: true });
+  }
+
+  // ---- Ligas compartidas: todos los miembros ven la misma clasificación ----
+  // La clasificación se hace con las hojas de liga de los miembros, contando solo las partidas entre miembros.
+  if (p === '/api/leagues' && m === 'GET') {
+    const u = await needUser(req, env);
+    const r = await env.DB.prepare(`SELECT l.id, l.name, l.owner, l.created, lm.ok, lm.invited_by, ib.nick AS inick FROM league_members lm JOIN leagues l ON l.id = lm.league_id LEFT JOIN users ib ON ib.id = lm.invited_by WHERE lm.user_id = ? ORDER BY l.created`).bind(u.id).all();
+    const leagues = [];
+    for (const x of (r.results || [])) {
+      const mem = await env.DB.prepare(`SELECT lm.user_id, lm.ok, us.nick FROM league_members lm JOIN users us ON us.id = lm.user_id WHERE lm.league_id = ?`).bind(x.id).all();
+      leagues.push({ id: x.id, name: x.name, owner: 'a-' + x.owner, mine: x.owner === u.id, joined: !!x.ok, invitedBy: x.inick || '', members: (mem.results || []).filter(y => y.ok).map(y => ({ id: 'a-' + y.user_id, nick: y.nick || '' })), invited: (mem.results || []).filter(y => !y.ok).map(y => ({ id: 'a-' + y.user_id, nick: y.nick || '' })) });
+    }
+    return json({ leagues });
+  }
+  if (p === '/api/leagues' && m === 'POST') {
+    needSameApp(req); const u = await needUser(req, env), b = await readJson(req);
+    const name = String(b.name || '').trim().slice(0, 40) || 'Liga';
+    const n = await env.DB.prepare('SELECT COUNT(*) AS n FROM league_members WHERE user_id = ? AND ok = 1').bind(u.id).first();
+    if (n && n.n >= 20) throw new HttpError(400, 'Ya estás en 20 ligas.', 'too_many');
+    const id = randomToken(9).replace(/[-_]/g, 'x');
+    await env.DB.batch([
+      env.DB.prepare('INSERT INTO leagues (id, name, owner, created) VALUES (?, ?, ?, ?)').bind(id, name, u.id, now()),
+      env.DB.prepare('INSERT INTO league_members (league_id, user_id, ok, joined) VALUES (?, ?, 1, ?)').bind(id, u.id, now())
+    ]);
+    return json({ ok: true, id, name });
+  }
+  const lg = p.match(/^\/api\/leagues\/([A-Za-z0-9]{6,20})(?:\/(invite|join|leave|table))?$/);
+  if (lg) {
+    const u = await needUser(req, env), id = lg[1], what = lg[2] || '';
+    const L = await env.DB.prepare('SELECT id, name, owner FROM leagues WHERE id = ?').bind(id).first();
+    if (!L) throw new HttpError(404, 'Esa liga no existe.', 'no_league');
+    const meRow = await env.DB.prepare('SELECT ok FROM league_members WHERE league_id = ? AND user_id = ?').bind(id, u.id).first();
+    const member = !!(meRow && meRow.ok);
+    if (what === 'table' && m === 'GET') {
+      if (!member) throw new HttpError(403, 'No estás en esa liga.', 'not_member');
+      const r = await env.DB.prepare(`SELECT lm.user_id, us.nick, lg2.gist, lg2.data, lg2.updated FROM league_members lm JOIN users us ON us.id = lm.user_id LEFT JOIN liga lg2 ON lg2.user_id = lm.user_id WHERE lm.league_id = ? AND lm.ok = 1`).bind(id).all();
+      const players = (r.results || []).map(x => { let file = null; try { file = x.data ? JSON.parse(x.data) : null; } catch (e) {} return { id: 'a-' + x.user_id, nick: x.nick || '', gist: x.gist || '', updated: x.updated || 0, games: file && Array.isArray(file.games) ? file.games : [] }; });
+      return json({ id: L.id, name: L.name, owner: 'a-' + L.owner, players });
+    }
+    if (what === 'invite' && m === 'POST') {
+      needSameApp(req); if (!member) throw new HttpError(403, 'No estás en esa liga.', 'not_member');
+      const b = await readJson(req);
+      const t = b.id ? await env.DB.prepare('SELECT id, nick FROM users WHERE id = ?').bind(String(b.id).replace(/^a-/, '')).first()
+        : await env.DB.prepare('SELECT id, nick FROM users WHERE nick_lc = ?').bind(String(b.nick || '').trim().toLowerCase()).first();
+      if (!t) throw new HttpError(404, 'No hay nadie con ese nombre de jugador.', 'no_user');
+      await env.DB.prepare('INSERT OR IGNORE INTO league_members (league_id, user_id, ok, invited_by, joined) VALUES (?, ?, 0, ?, ?)').bind(id, t.id, u.id, now()).run();
+      return json({ ok: true, nick: t.nick });
+    }
+    if (what === 'join' && m === 'POST') {   // aceptar la invitación, o entrar con el código de la liga
+      needSameApp(req);
+      await env.DB.prepare('INSERT INTO league_members (league_id, user_id, ok, joined) VALUES (?, ?, 1, ?) ON CONFLICT(league_id, user_id) DO UPDATE SET ok = 1, joined = excluded.joined').bind(id, u.id, now()).run();
+      return json({ ok: true, id, name: L.name });
+    }
+    if (what === 'leave' && m === 'POST') {   // salir, o rechazar la invitación
+      needSameApp(req);
+      await env.DB.prepare('DELETE FROM league_members WHERE league_id = ? AND user_id = ?').bind(id, u.id).run();
+      const left = await env.DB.prepare('SELECT user_id FROM league_members WHERE league_id = ? AND ok = 1 ORDER BY joined LIMIT 1').bind(id).first();
+      if (!left) await env.DB.batch([env.DB.prepare('DELETE FROM league_members WHERE league_id = ?').bind(id), env.DB.prepare('DELETE FROM leagues WHERE id = ?').bind(id)]);
+      else if (L.owner === u.id) await env.DB.prepare('UPDATE leagues SET owner = ? WHERE id = ?').bind(left.user_id, id).run();
+      return json({ ok: true });
+    }
+    if (!what && m === 'PATCH') {   // cambiar el nombre (cualquier miembro)
+      needSameApp(req); if (!member) throw new HttpError(403, 'No estás en esa liga.', 'not_member');
+      const b = await readJson(req); const name = String(b.name || '').trim().slice(0, 40);
+      if (!name) throw new HttpError(400, 'Escribe un nombre.', 'bad_name');
+      await env.DB.prepare('UPDATE leagues SET name = ? WHERE id = ?').bind(name, id).run();
+      return json({ ok: true, name });
+    }
   }
 
   // ---- Simulador: salas para jugar online ----

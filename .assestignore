@@ -1,0 +1,10 @@
+# Archivos del repositorio que NO se publican en la web
+     /index.js
+     /worker/
+     /wrangler.jsonc
+     /.assetsignore
+     /assetsignore
+     /.git
+     /.github
+     /node_modules
+     *.md

@@ -14,6 +14,9 @@
   "d1_databases": [
     { "binding": "DB", "database_name": "fly-high-vobaca", "database_id": "6810d733-3251-4c4e-9b3b-3dfc1df91b4a" }
   ],
+  // Salas del simulador: cada partida online vive en su propio Durable Object
+  "durable_objects": { "bindings": [{ "name": "ROOMS", "class_name": "Room" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room"] }],
   // No borrar las variables puestas a mano en el panel de Cloudflare al desplegar
   "keep_vars": true,
   "observability": { "enabled": true }

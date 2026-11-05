@@ -7,6 +7,8 @@
 //   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
 // Base de datos: D1 enlazada como DB (ver wrangler.jsonc). Las tablas se crean solas la primera vez.
 
+import { newGame, act, view, SimError } from './sim.js';
+
 const SESSION_COOKIE = 'fh_s', STATE_COOKIE = 'fh_st';
 const SESSION_DAYS = 180;
 const MAX_BODY = 8 * 1024 * 1024;          // 8 MB por sincronización
@@ -50,7 +52,9 @@ async function ensureSchema(env) {
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS sessions (hash TEXT PRIMARY KEY, user_id TEXT NOT NULL, created INTEGER, expires INTEGER, ua TEXT)`),
     env.DB.prepare(`CREATE INDEX IF NOT EXISTS sessions_user ON sessions(user_id)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS userdata (user_id TEXT NOT NULL, k TEXT NOT NULL, v TEXT NOT NULL, updated INTEGER, PRIMARY KEY (user_id, k))`),
-    env.DB.prepare(`CREATE TABLE IF NOT EXISTS liga (user_id TEXT PRIMARY KEY, gist TEXT UNIQUE, data TEXT NOT NULL, updated INTEGER)`)
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS liga (user_id TEXT PRIMARY KEY, gist TEXT UNIQUE, data TEXT NOT NULL, updated INTEGER)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS rooms (code TEXT PRIMARY KEY, host TEXT NOT NULL, guest TEXT, invitee TEXT, created INTEGER, updated INTEGER)`),
+    env.DB.prepare(`CREATE INDEX IF NOT EXISTS rooms_inv ON rooms(invitee)`)
   ]);
   schemaReady = true;
 }
@@ -220,7 +224,110 @@ async function api(req, env, url) {
     return json({ id: 'a-' + u2.id, nick: u2.nick });
   }
 
+  // ---- Simulador: salas para jugar online ----
+  if (p === '/api/rooms' && m === 'POST') {
+    needSameApp(req); const u = await needUser(req, env), b = await readJson(req);
+    if (!env.ROOMS) throw new HttpError(503, 'Falta activar las salas (Durable Objects) en el servidor.', 'no_rooms');
+    if (!u.nick) throw new HttpError(400, 'Antes de jugar online, ponte un nombre de jugador (en tu cuenta).', 'need_nick');
+    let invitee = null;
+    if (b.invite) {
+      const id = String(b.invite).replace(/^a-/, '');
+      const iu = await env.DB.prepare('SELECT id FROM users WHERE id = ?').bind(id).first();
+      if (!iu) throw new HttpError(404, 'Ese amigo no tiene cuenta.', 'no_user');
+      invitee = iu.id;
+    }
+    const ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for (let tries = 0; tries < 5; tries++) {
+      code = Array.from(crypto.getRandomValues(new Uint8Array(6)), x => ABC[x % ABC.length]).join('');
+      if (!(await env.DB.prepare('SELECT code FROM rooms WHERE code = ?').bind(code).first())) break;
+    }
+    const stub = env.ROOMS.get(env.ROOMS.idFromName(code));
+    const r = await stub.fetch('https://room/init', { method: 'POST', body: JSON.stringify({ code, host: { uid: u.id, nick: u.nick }, invitee }) });
+    if (!r.ok) throw new HttpError(500, 'No se ha podido crear la sala.', 'room_fail');
+    await env.DB.prepare('INSERT INTO rooms (code, host, invitee, created, updated) VALUES (?, ?, ?, ?, ?)').bind(code, u.id, invitee, now(), now()).run();
+    return json({ code });
+  }
+  if (p === '/api/rooms' && m === 'GET') {   // tus salas recientes e invitaciones
+    const u = await needUser(req, env);
+    const r = await env.DB.prepare(`SELECT r.code, r.host, r.guest, r.invitee, r.created, h.nick AS hnick, g.nick AS gnick
+      FROM rooms r JOIN users h ON h.id = r.host LEFT JOIN users g ON g.id = r.guest
+      WHERE (r.host = ? OR r.guest = ? OR r.invitee = ?) AND r.created > ? ORDER BY r.created DESC LIMIT 20`).bind(u.id, u.id, u.id, now() - 2 * 864e5).all();
+    return json({ rooms: (r.results || []).map(x => ({ code: x.code, host: x.hnick || '', guest: x.gnick || '', mine: x.host === u.id, invited: x.invitee === u.id && !x.guest, created: x.created })) });
+  }
+  const rm = p.match(/^\/api\/rooms\/([A-Z0-9]{6})\/ws$/);
+  if (rm && m === 'GET') {
+    const u = await needUser(req, env);
+    if ((req.headers.get('Upgrade') || '').toLowerCase() !== 'websocket') throw new HttpError(426, 'Hace falta WebSocket.', 'ws');
+    const row = await env.DB.prepare('SELECT code, host, guest, invitee FROM rooms WHERE code = ?').bind(rm[1]).first();
+    if (!row) throw new HttpError(404, 'Esa sala no existe.', 'no_room');
+    if (row.host !== u.id && row.guest !== u.id) {
+      if (row.guest) throw new HttpError(403, 'Esa sala ya está completa.', 'room_full');
+      if (row.invitee && row.invitee !== u.id) throw new HttpError(403, 'Esa sala es para otro jugador.', 'room_private');
+      await env.DB.prepare('UPDATE rooms SET guest = ?, updated = ? WHERE code = ? AND guest IS NULL').bind(u.id, now(), row.code).run();
+    }
+    const stub = env.ROOMS.get(env.ROOMS.idFromName(row.code));
+    const fwd = new Request('https://room/ws', req);
+    fwd.headers.set('X-Uid', u.id); fwd.headers.set('X-Nick', encodeURIComponent(u.nick || u.name || 'Jugador'));
+    return stub.fetch(fwd);
+  }
+
   throw new HttpError(404, 'No existe: ' + p, 'not_found');
+}
+
+// ---- Una sala de juego (Durable Object): guarda la partida y la reparte a los dos jugadores por WebSocket ----
+export class Room {
+  constructor(ctx, env) { this.ctx = ctx; this.env = env; this.G = null; }
+  async load() { if (!this.G) this.G = (await this.ctx.storage.get('G')) || null; return this.G; }
+  async save() { await this.ctx.storage.put('G', this.G); }
+  send(ws, obj) { try { ws.send(JSON.stringify(obj)); } catch (e) {} }
+  broadcast() {
+    for (const ws of this.ctx.getWebSockets()) { const at = ws.deserializeAttachment() || {}; this.send(ws, { code: this.G.code, view: view(this.G, at.seat) }); }
+  }
+  async fetch(req) {
+    const url = new URL(req.url);
+    if (url.pathname === '/init') {
+      const b = await req.json(); const G = newGame();
+      G.code = b.code; G.invitee = b.invitee || null; G.seats[0] = { uid: b.host.uid, nick: b.host.nick, on: false };
+      this.G = G; await this.save(); return new Response('ok');
+    }
+    if (url.pathname === '/ws') {
+      const G = await this.load(); if (!G) return new Response('no room', { status: 404 });
+      const uid = req.headers.get('X-Uid'), nick = decodeURIComponent(req.headers.get('X-Nick') || 'Jugador');
+      let seat = G.seats.findIndex(x => x && x.uid === uid);
+      if (seat < 0) {
+        if (G.seats[1] || (G.invitee && G.invitee !== uid)) return new Response('full', { status: 403 });
+        G.seats[1] = { uid, nick, on: false }; seat = 1; G.v++;
+        G.log.push({ t: Date.now(), s: 1, k: 'join', a: {} });
+      }
+      const pair = new WebSocketPair();
+      this.ctx.acceptWebSocket(pair[1]);
+      pair[1].serializeAttachment({ seat, uid });
+      G.seats[seat].on = true; G.seats[seat].nick = nick;
+      await this.save(); this.broadcast();
+      return new Response(null, { status: 101, webSocket: pair[0] });
+    }
+    return new Response('not found', { status: 404 });
+  }
+  async webSocketMessage(ws, msg) {
+    const at = ws.deserializeAttachment() || {}; const G = await this.load(); if (!G) return;
+    let a; try { a = JSON.parse(typeof msg === 'string' ? msg : new TextDecoder().decode(msg)); } catch (e) { return; }
+    if (a.type === 'ping') { this.send(ws, { pong: Date.now() }); return; }
+    if (a.type === 'hello') { this.send(ws, { code: G.code, view: view(G, at.seat) }); return; }
+    try {
+      if (act(G, at.seat, a)) { await this.save(); this.broadcast(); }
+    } catch (e) {
+      this.send(ws, { err: e instanceof SimError ? e.message : 'Error: ' + (e && e.message || e), id: a.id || null });
+      if (!(e instanceof SimError)) console.error(e);
+    }
+  }
+  async webSocketClose(ws) { await this.gone(ws); }
+  async webSocketError(ws) { await this.gone(ws); }
+  async gone(ws) {
+    const at = ws.deserializeAttachment() || {}; const G = await this.load(); if (!G || !G.seats[at.seat]) return;
+    const still = this.ctx.getWebSockets().some(w => w !== ws && (w.deserializeAttachment() || {}).seat === at.seat);
+    if (!still) { G.seats[at.seat].on = false; G.v++; await this.save(); this.broadcast(); }
+  }
 }
 
 // Comprueba en GitHub que la hoja de liga de ese Gist dice pertenecer a esta cuenta (solo su dueño puede escribir en él)

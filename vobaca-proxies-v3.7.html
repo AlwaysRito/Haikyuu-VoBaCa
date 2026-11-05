@@ -901,7 +901,7 @@ dialog.mt-dlg{width:min(720px,calc(100vw - 16px));max-height:calc(100dvh - 16px)
 
 <dialog id="lgDlg" class="imgdlg">
   <h2>Liga con amigos</h2>
-  <p class="bk-prev" id="lgNeedSync" hidden>Para la liga necesitas tener conectada la sincronización con GitHub (Mazo → Copia / sincronizar). Cada amigo usa su propia cuenta.</p>
+  <p class="bk-prev" id="lgNeedSync" hidden>Para la liga necesitas entrar con tu cuenta (Mazo → Copia / sincronizar → Entrar con Google). Cada amigo entra con la suya.</p>
   <div id="lgOff">
     <p>Cada uno apunta sus partidas contra los demás en su herramienta y aquí se ve la clasificación de todos. Para empezar, elige el nombre con el que te verán tus amigos.</p>
     <div class="lg-row"><input id="lgName0" maxlength="30" placeholder="Tu nombre en la liga" autocomplete="off"><button class="btn" id="lgStart" type="button">Empezar</button></div>
@@ -917,12 +917,13 @@ dialog.mt-dlg{width:min(720px,calc(100vw - 16px));max-height:calc(100dvh - 16px)
     <div class="lg-sec">
       <h3>Jugadores</h3>
       <div id="lgMembers"></div>
-      <div class="lg-row"><input id="lgFriend" placeholder="Código de un amigo (VBL-…)" autocomplete="off" spellcheck="false"><button class="btn ghost" id="lgAdd" type="button">Añadir amigo</button></div>
-      <p class="st-note">Tú añades el código de tu amigo y él añade el tuyo. Los amigos de tus amigos aparecen solos.</p>
+      <div class="lg-row"><input id="lgFriend" placeholder="Nombre de jugador o código (VBL-…)" autocomplete="off" spellcheck="false"><button class="btn ghost" id="lgAdd" type="button">Añadir amigo</button></div>
+      <p class="st-note">Tú añades a tu amigo y él te añade a ti. Los amigos de tus amigos aparecen solos.</p>
     </div>
     <div class="lg-sec">
       <h3>Tu código</h3>
       <code class="lg-code" id="lgCode"></code>
+      <p class="st-note" id="lgNickHint" hidden></p>
       <div class="lg-row"><button class="btn ghost" id="lgShare" type="button">Compartir mi código</button><label class="lg-row" style="align-items:center;gap:6px;font-size:14px">Tu nombre <input id="lgName" maxlength="30" autocomplete="off"></label></div>
     </div>
   </div>
@@ -3259,8 +3260,8 @@ $('qrCopy').onclick = async () => { try { await navigator.clipboard.writeText(QR
 
 // ---- Novedades de cada versión ----
 const CHANGELOG = [
-  ['3.7', ['Botón «QR» en Compartir: enseña el código y tu amigo abre el mazo con la cámara del móvil. También hay un QR de la web para invitar a gente.', 'Esta ventana de novedades: sale sola al estrenar versión y siempre puedes abrirla tocando el número de versión de arriba.'],
-          ['«QR» button in Share: show the code and your friend opens the deck with their phone camera. There is also a QR of the website to invite people.', 'This What’s new window: it appears on its own with each new version, and you can always open it by tapping the version number at the top.']],
+  ['3.7', ['Nuevo nombre: Fly High VoBaCa, con su propia dirección web.', 'Cuentas: entra con Google (Copia / sincronizar → Tu cuenta) y tus mazos se sincronizan sin tokens ni GitHub. Elige tu nombre de jugador.', 'La liga funciona con la cuenta: añade a tus amigos por su nombre de jugador. Si venías de la liga con GitHub, tus partidas se pasan solas.', 'Modo oscuro (botón ◐ de arriba) y botón ✕ para cerrar arriba a la derecha de cada ventana.', 'Botón «QR» en Compartir: enseña el código y tu amigo abre el mazo con la cámara del móvil. También hay un QR de la web para invitar a gente.', 'Esta ventana de novedades: sale sola al estrenar versión y siempre puedes abrirla tocando el número de versión de arriba.'],
+          ['New name: Fly High VoBaCa, with its own web address.', 'Accounts: sign in with Google (Backup / sync → Your account) and your decks sync without tokens or GitHub. Choose your player name.', 'The league works with your account: add friends by their player name. If you used the GitHub league, your games move over automatically.', 'Dark mode (◐ button at the top) and a ✕ close button at the top right of every window.', '«QR» button in Share: show the code and your friend opens the deck with their phone camera. There is also a QR of the website to invite people.', 'This What’s new window: it appears on its own with each new version, and you can always open it by tapping the version number at the top.']],
   ['3.6', ['Arquetipos de mazos: cada mazo tiene un estilo (Bloqueo, Ataque, Saque…) y sus personajes clave, p. ej. «Bloqueo · Tsukishima/Kuroo».', 'Filtro y pestaña «Arquetipos» en Mazos públicos, arquetipo en Mis mazos y selector agrupado por arquetipos.'],
           ['Deck archetypes: each deck has a style (Block, Attack, Serve…) and its key characters, e.g. «Block · Tsukishima/Kuroo».', '«Archetypes» filter and tab in Public decks, archetype in My decks and a selector grouped by archetype.']],
   ['3.5', ['Partidas por versión del mazo, imagen de las clasificaciones, confirmar resultados de la liga, ver mazos sin importarlos y atajos de la app.'],
@@ -3842,7 +3843,35 @@ const saveLG = () => { LG.t = Date.now(); try { localStorage.setItem('vobaca-lig
 let LGC = {};   // copia local de lo descargado: gistId -> { name, games, members, date }
 try { LGC = JSON.parse(localStorage.getItem('vobaca-liga-cache') || '{}') || {}; } catch (e) { LGC = {}; }
 const ligaCode = id => 'VBL-' + id;
-const parseLigaCode = v => { const m = String(v).match(/(?:VBL-)?([0-9a-f]{20,40})/i); return m ? m[1].toLowerCase() : ''; };
+const parseLigaCode = v => { v = String(v); const a = v.match(/(?:VBL-)?(a-[A-Za-z0-9_-]{6,40})/); if (a) return a[1]; const m = v.match(/(?:VBL-)?([0-9a-f]{20,40})/i); return m ? m[1].toLowerCase() : ''; };
+const LIGA_ID_RE = /^(a-[A-Za-z0-9_-]{6,40}|[0-9a-f]{20,40})$/i;
+// Con cuenta, en la liga eres «a-<cuenta>»; sin cuenta, tu Gist. Tu Gist antiguo sigue contando como tú.
+const ligaUid = () => { try { const u = (SY.acct && (AC.user || SY.user)) || null; return u && u.id ? u.id : ''; } catch (e) { return SY.acct && SY.user && SY.user.id || ''; } };
+const ligaAcct = () => !!ligaUid();
+const myLigaId = () => ligaAcct() ? 'a-' + ligaUid() : LG.gist;
+const myLigaIds = () => new Set([ligaAcct() ? 'a-' + ligaUid() : null, LG.gist].filter(Boolean));
+const isMe = id => myLigaIds().has(id);
+const ligaReady = () => ligaAcct() || !!SY.token;
+const myNick = () => { try { return (AC.user && AC.user.nick) || (SY.user && SY.user.nick) || ''; } catch (e) { return ''; } };
+// Un amigo pasa de Gist a cuenta: se cambia su identificador en todo lo guardado
+function renameLigaId(from, to) {
+  if (!from || !to || from === to) return;
+  LG.members = [...new Set((LG.members || []).map(x => x === from ? to : x))];
+  if (LG.names && LG.names[from]) { LG.names[to] = LG.names[to] || LG.names[from]; delete LG.names[from]; }
+  LG.dis = (LG.dis || []).map(k => k.startsWith(from + ':') ? to + k.slice(from.length) : k);
+  let ch = false;
+  Object.values(GAMES).forEach(g => {
+    if (g.friend === from) { g.friend = to; ch = true; }
+    if (g.mirror && String(g.mirror).startsWith(from + ':')) { g.mirror = to + String(g.mirror).slice(from.length); ch = true; }
+  });
+  (TOURN.list || []).forEach(t => {
+    t.players.forEach(pl => { if (pl.id === from) pl.id = to; });
+    t.rounds.forEach(r => r.forEach(mm => { ['a', 'b', 'w'].forEach(k => { if (mm[k] === from) mm[k] = to; }); }));
+  });
+  if (LGC[from]) { LGC[to] = LGC[to] || LGC[from]; delete LGC[from]; }
+  if (ch) saveGAMES();
+  saveTOURN(); saveLG();
+}
 const friendName = id => (LGC[id] && LGC[id].name) || (LG.names && LG.names[id]) || 'Amigo';
 async function findLigaGist() {
   for (let p = 1; p <= 10; p++) {
@@ -3857,50 +3886,81 @@ function myLigaFile() {
     const d = decks.find(x => x.id === g.deck);
     return [k, g.date || '', g.res, g.friend, d ? d.name || '' : '', g.sets || '', g.opp || '', g.oppTxt || '', g.mirror || ''];
   });
-  return { app: 'vobaca-proxies', kind: 'liga', v: 1, name: LG.name || 'Sin nombre', members: LG.members || [], date: new Date().toISOString(), games };
+  return { app: 'vobaca-proxies', kind: 'liga', v: 1, name: LG.name || myNick() || 'Sin nombre', members: LG.members || [], date: new Date().toISOString(), games, ...(ligaAcct() ? { acct: 'a-' + ligaUid() } : {}) };
 }
 let ligaTimer = null, ligaBusy = false;
-function ligaSoon() { if (!SY.token || !LG.on) return; clearTimeout(ligaTimer); ligaTimer = setTimeout(() => ligaPublish().catch(() => {}), 3000); }
+function ligaSoon() { if (!ligaReady() || !LG.on) return; clearTimeout(ligaTimer); ligaTimer = setTimeout(() => ligaPublish().catch(() => {}), 3000); }
 async function ligaPublish() {
-  if (!SY.token || !LG.on || ligaBusy) return;
+  if (!ligaReady() || !LG.on || ligaBusy) return;
   ligaBusy = true;
   try {
-    if (!LG.gist) { LG.gist = await findLigaGist(); }
-    const files = { [LIGA_FILE]: { content: JSON.stringify(myLigaFile()) } };
-    if (LG.gist) await gh('/gists/' + LG.gist, { method: 'PATCH', body: JSON.stringify({ files }) });
-    else { const g = await gh('/gists', { method: 'POST', body: JSON.stringify({ description: 'Fly High VoBaCa · liga con amigos', public: false, files }) }); LG.gist = g.id; }
+    // Gist: sin cuenta es donde se publica; con cuenta se sigue actualizando (si ya existía) para los amigos que aún no tienen cuenta
+    if (SY.token) {
+      if (!LG.gist && !ligaAcct()) LG.gist = await findLigaGist();
+      const files = { [LIGA_FILE]: { content: JSON.stringify(myLigaFile()) } };
+      if (LG.gist) await gh('/gists/' + LG.gist, { method: 'PATCH', body: JSON.stringify({ files }) });
+      else if (!ligaAcct()) { const g = await gh('/gists', { method: 'POST', body: JSON.stringify({ description: 'Fly High VoBaCa · liga con amigos', public: false, files }) }); LG.gist = g.id; }
+    }
+    if (ligaAcct()) {
+      if (LG.gist && !LG.meMoved) { renameLigaId(LG.gist, 'a-' + ligaUid()); LG.meMoved = true; }   // tus torneos: de tu Gist a tu cuenta
+      const body = gist => JSON.stringify({ file: myLigaFile(), gist });
+      try { const r = await fh('/api/liga', { method: 'PUT', body: body(LG.gist && !LG.gistTaken ? LG.gist : '') }); LG.claimed = !!r.gist; }
+      catch (e) {
+        if (e.code === 'gist_taken' || e.code === 'gist_unverified') { if (e.code === 'gist_taken') LG.gistTaken = true; await fh('/api/liga', { method: 'PUT', body: body('') }); }
+        else throw e;
+      }
+    }
     try { localStorage.setItem('vobaca-liga', JSON.stringify(LG)); } catch (e) {}
   } finally { ligaBusy = false; }
 }
 async function ligaFetch() {
-  const seen = new Set(), queue = [LG.gist, ...(LG.members || [])].filter(Boolean);
-  while (queue.length && seen.size < 30) {
-    const id = queue.shift(); if (seen.has(id)) continue; seen.add(id);
-    try {
-      const g = await gh('/gists/' + id), f = g.files && g.files[LIGA_FILE];
-      if (!f) continue;
-      let txt = f.content; if (f.truncated) txt = await fetch(f.raw_url, { cache: 'no-store' }).then(r => r.text());
-      const j = JSON.parse(txt); if (!j || j.kind !== 'liga') continue;
-      LGC[id] = { name: String(j.name || 'Sin nombre').slice(0, 40), games: Array.isArray(j.games) ? j.games : [], members: Array.isArray(j.members) ? j.members : [], date: j.date };
-      LGC[id].members.forEach(m => { if (typeof m === 'string' && /^[0-9a-f]{20,40}$/i.test(m) && !seen.has(m)) queue.push(m); });   // amigos de amigos
-    } catch (e) { if (!LGC[id]) LGC[id] = { name: (LG.names && LG.names[id]) || 'Amigo', games: [], members: [], err: e.message }; else LGC[id].err = e.message; }
+  const seen = new Set(), queue = [...(LG.members || [])].filter(Boolean);
+  const store = (id, j, nick) => {
+    LGC[id] = { name: String(nick || j.name || 'Sin nombre').slice(0, 40), games: Array.isArray(j.games) ? j.games : [], members: Array.isArray(j.members) ? j.members : [], date: j.date };
+    LGC[id].members.forEach(m => { if (typeof m === 'string' && LIGA_ID_RE.test(m) && !seen.has(m) && !isMe(m)) queue.push(m); });   // amigos de amigos
+  };
+  const fail = (id, msg) => { if (!LGC[id]) LGC[id] = { name: (LG.names && LG.names[id]) || 'Amigo', games: [], members: [], err: msg }; else LGC[id].err = msg; };
+  while (queue.length && seen.size < 40) {
+    const batch = [...new Set(queue.splice(0, 20))].filter(id => !seen.has(id) && !isMe(id));
+    batch.forEach(id => seen.add(id)); if (!batch.length) continue;
+    let srv = {};
+    if (ligaAcct()) { try { srv = (await fh('/api/liga?ids=' + encodeURIComponent(batch.join(',')))).players || {}; } catch (e) { batch.forEach(id => fail(id, e.message)); continue; } }
+    for (const id of batch) {
+      const x = srv[id];
+      if (x && x.file) {
+        if (x.id !== id && !isMe(x.id)) { renameLigaId(id, x.id); seen.add(x.id); }   // su Gist antiguo ya está enlazado a su cuenta
+        if (!isMe(x.id)) store(x.id, x.file, x.nick);
+        continue;
+      }
+      if (/^[0-9a-f]{20,40}$/i.test(id) && SY.token) {   // amigo que aún usa la liga con Gist
+        try {
+          const g = await gh('/gists/' + id), f = g.files && g.files[LIGA_FILE];
+          if (!f) continue;
+          let txt = f.content; if (f.truncated) txt = await fetch(f.raw_url, { cache: 'no-store' }).then(r => r.text());
+          const j = JSON.parse(txt); if (!j || j.kind !== 'liga') continue;
+          store(id, j);
+        } catch (e) { fail(id, e.message); }
+      } else fail(id, /^a-/.test(id) ? 'aún no ha publicado su liga' : 'este amigo usa GitHub y tú no tienes el token');
+    }
   }
   try { localStorage.setItem('vobaca-liga-cache', JSON.stringify(LGC)); } catch (e) {}
 }
 function renderLiga() {
   const on = !!LG.on;
   $('lgOff').hidden = on; $('lgOn').hidden = !on;
-  $('lgNeedSync').hidden = !!SY.token;
+  $('lgNeedSync').hidden = ligaReady();
   if (!on) return;
   $('lgName').value = LG.name || '';
-  $('lgCode').textContent = LG.gist ? ligaCode(LG.gist) : 'se crea al guardar tu nombre…';
+  const me = myLigaId();
+  $('lgCode').textContent = me ? ligaCode(me) : 'se crea al guardar tu nombre…';
+  $('lgNickHint').hidden = !ligaAcct();
+  $('lgNickHint').textContent = myNick() ? `Tus amigos con cuenta también pueden añadirte por tu nombre de jugador: ${myNick()}` : 'Ponte un nombre de jugador en Copia / sincronizar → Tu cuenta, y tus amigos podrán añadirte por él.';
   // Jugadores: yo + miembros + amigos de amigos
-  const ids = [...new Set([LG.gist, ...(LG.members || []), ...Object.keys(LGC)].filter(Boolean))];
-  const me = LG.gist;
+  const ids = [...new Set([me, ...(LG.members || []), ...Object.keys(LGC)].filter(id => id && (id === me || !isMe(id))))];
   const stats = ids.map(id => {
     const src = id === me ? myLigaFile() : LGC[id]; const gs = (src && src.games) || [];
     const w = gs.filter(g => g[2] === 'W').length;
-    return { id, name: id === me ? (LG.name || 'Tú') : friendName(id), n: gs.length, w, l: gs.length - w, games: gs, me: id === me, err: LGC[id] && LGC[id].err };
+    return { id, name: id === me ? (LG.name || myNick() || 'Tú') : friendName(id), n: gs.length, w, l: gs.length - w, games: gs, me: id === me, err: LGC[id] && LGC[id].err };
   }).filter(s => s.me || LGC[s.id] || (LG.members || []).includes(s.id));
   stats.sort((a, b) => (b.n ? b.w / b.n : -1) - (a.n ? a.w / a.n : -1) || b.w - a.w);
   $('lgTable').innerHTML = `<tr><th>Jugador</th><th class="n">PJ</th><th class="n">V</th><th class="n">D</th><th class="n">%</th></tr>` + stats.map(s =>
@@ -3909,12 +3969,12 @@ function renderLiga() {
   const h2h = [];
   stats.forEach(s => {
     const by = {}; s.games.forEach(g => { (by[g[3]] = by[g[3]] || [0, 0])[g[2] === 'W' ? 0 : 1]++; });
-    Object.entries(by).forEach(([op, [w, l]]) => h2h.push(`<span>${esc(s.name)} <b>${w}-${l}</b> ${esc(op === me ? (LG.name || 'Tú') : friendName(op))}</span>`));
+    Object.entries(by).forEach(([op, [w, l]]) => h2h.push(`<span>${esc(s.name)} <b>${w}-${l}</b> ${esc(isMe(op) ? (LG.name || 'Tú') : friendName(op))}</span>`));
   });
   $('lgH2H').innerHTML = h2h.join('') || '<span>Todavía no hay partidas entre vosotros.</span>';
   // Últimas partidas de todos
   const all = stats.flatMap(s => s.games.map(g => ({ s, g }))).sort((a, b) => (b.g[1] || '').localeCompare(a.g[1] || '')).slice(0, 20);
-  $('lgLast').innerHTML = all.map(({ s, g }) => `<div class="gm-row"><span class="gm-res ${g[2] === 'W' ? 'w' : 'l'}">${g[2] === 'W' ? 'V' : 'D'}${g[5] ? ' ' + esc(g[5]) : ''}</span><div><span>${esc(s.name)} contra ${esc(g[3] === me ? (LG.name || 'Tú') : friendName(g[3]))}</span><small>${esc((g[1] || '').split('-').reverse().join('/'))}${g[4] ? ' · con «' + esc(g[4]) + '»' : ''}${g[7] ? ' · rival: ' + esc(g[7]) : ''}</small></div><span></span></div>`).join('') || '<p class="hint" style="text-align:left">Apunta partidas eligiendo a un amigo como rival (Mazo → Partidas → Apuntar partida).</p>';
+  $('lgLast').innerHTML = all.map(({ s, g }) => `<div class="gm-row"><span class="gm-res ${g[2] === 'W' ? 'w' : 'l'}">${g[2] === 'W' ? 'V' : 'D'}${g[5] ? ' ' + esc(g[5]) : ''}</span><div><span>${esc(s.name)} contra ${esc(isMe(g[3]) ? (LG.name || 'Tú') : friendName(g[3]))}</span><small>${esc((g[1] || '').split('-').reverse().join('/'))}${g[4] ? ' · con «' + esc(g[4]) + '»' : ''}${g[7] ? ' · rival: ' + esc(g[7]) : ''}</small></div><span></span></div>`).join('') || '<p class="hint" style="text-align:left">Apunta partidas eligiendo a un amigo como rival (Mazo → Partidas → Apuntar partida).</p>';
   $('lgMembers').innerHTML = (LG.members || []).map(id => `<span class="lg-mem">${esc(friendName(id))}<button type="button" class="linkbtn" data-rm="${esc(id)}" aria-label="Quitar">✕</button></span>`).join('') || '<span class="hint">Aún no has añadido a nadie.</span>';
   $('lgMembers').querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { if (!confirm('¿Quitar a este amigo de tu liga?')) return; LG.members = LG.members.filter(x => x !== b.dataset.rm); delete LGC[b.dataset.rm]; saveLG(); renderLiga(); });
   fillFriendSelect();
@@ -3922,12 +3982,12 @@ function renderLiga() {
 }
 function fillFriendSelect() {
   const keep = $('gmFriend').value;
-  const ids = [...new Set([...(LG.members || []), ...Object.keys(LGC)])].filter(id => id !== LG.gist);
+  const ids = [...new Set([...(LG.members || []), ...Object.keys(LGC)])].filter(id => !isMe(id));
   $('gmFriend').innerHTML = opt('', '— Nadie de la liga —') + ids.map(id => opt(id, esc(friendName(id)))).join('');
   $('gmFriend').value = keep; $('gmFriendRow').hidden = !LG.on || !ids.length;
 }
 async function ligaRefresh() {
-  if (!SY.token || !LG.on) return;
+  if (!ligaReady() || !LG.on) return;
   $('lgMsg').textContent = 'Actualizando…';
   try { await ligaPublish(); await ligaFetch(); $('lgMsg').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }); }
   catch (e) { $('lgMsg').textContent = 'No se ha podido actualizar: ' + e.message; }
@@ -3936,11 +3996,11 @@ async function ligaRefresh() {
 function openLiga() {
   renderLiga();
   const d = $('lgDlg'); d.showModal ? d.showModal() : d.setAttribute('open', '');
-  if (LG.on && SY.token) ligaRefresh();
+  if (LG.on && ligaReady()) ligaRefresh();
 }
 $('lgStart').onclick = async () => {
-  if (!SY.token) { alert('Primero conecta la sincronización con GitHub (Mazo → Copia / sincronizar).'); return; }
-  const n = $('lgName0').value.trim(); if (!n) { $('lgName0').focus(); return; }
+  if (!ligaReady()) { alert('Primero entra con tu cuenta (Mazo → Copia / sincronizar → Entrar con Google).'); return; }
+  const n = $('lgName0').value.trim() || myNick(); if (!n) { $('lgName0').focus(); return; }
   LG = { ...LG, on: true, name: n.slice(0, 30), members: LG.members || [] }; saveLG(); renderLiga();
   $('lgMsg').textContent = 'Creando tu código…';
   try { await ligaPublish(); $('lgMsg').textContent = ''; } catch (e) { $('lgMsg').textContent = 'No se ha podido crear: ' + e.message; }
@@ -3948,15 +4008,19 @@ $('lgStart').onclick = async () => {
 };
 $('lgName').addEventListener('change', () => { LG.name = $('lgName').value.trim().slice(0, 30) || LG.name; saveLG(); renderLiga(); });
 $('lgAdd').onclick = async () => {
-  const id = parseLigaCode($('lgFriend').value);
-  if (!id) { $('lgMsg').textContent = 'Ese código no es válido (empieza por VBL-).'; return; }
-  if (id === LG.gist) { $('lgMsg').textContent = 'Ese es tu propio código.'; return; }
+  const v = $('lgFriend').value.trim(); if (!v) return;
+  let id = parseLigaCode(v);
+  if (!id && ligaAcct() && !/^VBL-/i.test(v)) {   // nombre de jugador
+    try { id = (await fh('/api/users?nick=' + encodeURIComponent(v))).id; } catch (e) { $('lgMsg').textContent = e.message; return; }
+  }
+  if (!id) { $('lgMsg').textContent = ligaAcct() ? 'No es un código (VBL-…) ni un nombre de jugador.' : 'Ese código no es válido (empieza por VBL-).'; return; }
+  if (isMe(id)) { $('lgMsg').textContent = 'Ese eres tú.'; return; }
   LG.members = [...new Set([...(LG.members || []), id])]; $('lgFriend').value = ''; saveLG();
   await ligaRefresh();
 };
 $('lgShare').onclick = async () => {
-  if (!LG.gist) return;
-  const code = ligaCode(LG.gist), text = `Únete a mi liga de Fly High VoBaCa: en la herramienta, Mazo → Partidas → Liga con amigos → Añadir amigo, y pega este código: ${code}`;
+  const me = myLigaId(); if (!me) return;
+  const code = ligaCode(me), text = `Únete a mi liga de Fly High VoBaCa: en la herramienta, Mazo → Partidas → Liga con amigos → Añadir amigo, y pega ${myNick() && ligaAcct() ? `mi nombre de jugador (${myNick()}) o ` : ''}este código: ${code}`;
   if (navigator.share) { try { await navigator.share({ title: 'Liga Vobaca', text }); return; } catch (e) { if (e.name === 'AbortError') return; } }
   try { await navigator.clipboard.writeText(code); $('lgMsg').textContent = 'Código copiado.'; } catch (e) { prompt('Copia tu código:', code); }
 };
@@ -4223,7 +4287,7 @@ async function mtWake(on) {
 }
 function openMatch() {
   if (!MT || MT.deck !== decks[cur].id || MT.saved) { MT = mtNew(); MT_HIST = []; }   // una partida terminada se conserva hasta guardarla
-  const ids = [...new Set([...(LG.members || []), ...Object.keys(LGC)])].filter(id => id !== LG.gist);
+  const ids = [...new Set([...(LG.members || []), ...Object.keys(LGC)])].filter(id => !isMe(id));
   $('mtFriend').innerHTML = opt('', '— Rival sin liga —') + ids.map(id => opt(id, esc(friendName(id)))).join('');
   $('mtFriendWrap').hidden = !LG.on || !ids.length;
   $('mtOpp').innerHTML = opt('', 'Instituto del rival') + SCHOOLS.map(([k, v]) => opt(k, v)).join('');
@@ -4509,7 +4573,7 @@ let TOURN = { list: [], t: 0 };
 try { TOURN = JSON.parse(localStorage.getItem('vobaca-tourn') || 'null') || TOURN; } catch (e) {}
 const saveTOURN = () => { TOURN.t = Date.now(); try { localStorage.setItem('vobaca-tourn', JSON.stringify(TOURN)); } catch (e) {} syncSoon(); ligaSoon(); };
 const activeT = () => (TOURN.list || []).find(t => !t.done) || null;
-const ME_ID = () => LG.gist || 'me';
+const ME_ID = () => myLigaId() || 'me';
 function tStand(t) {
   const st = {}; t.players.forEach(p => st[p.id] = { p, w: 0, l: 0, opp: [], bye: 0 });
   t.rounds.forEach(r => r.forEach(m => {
@@ -4587,7 +4651,7 @@ function renderTourn() {
   const t = activeT();
   $('tNew').hidden = !!t; $('tCur').hidden = !t;
   if (!t) {
-    const ids = [...new Set([...(LG.members || []), ...Object.keys(LGC)])].filter(id => id !== LG.gist);
+    const ids = [...new Set([...(LG.members || []), ...Object.keys(LGC)])].filter(id => !isMe(id));
     $('tPlayers').innerHTML = [[ME_ID(), (LG.name || 'Tú') + ' (tú)'], ...ids.map(id => [id, friendName(id)]), ...tGuests.map(g => [g, g.replace(/^g:/, '') + ' (invitado)'])]
       .map(([id, n]) => `<label><input type="checkbox" value="${esc(id)}" checked> ${esc(n)}</label>`).join('');
     const past = (TOURN.list || []).filter(x => x.done).slice(-5).reverse();
@@ -4642,7 +4706,7 @@ $('tFinish').onclick = () => { const t = activeT(); if (!t) return; t.done = tru
 $('tCancel').onclick = () => { const t = activeT(); if (!t || !confirm('¿Cancelar este torneo? Se borra y no cuenta.')) return; TOURN.list = TOURN.list.filter(x => x !== t); saveTOURN(); renderTourn(); };
 $('tClose').onclick = () => { const d = $('tDlg'); d.close ? d.close() : d.removeAttribute('open'); };
 function openTourn() {
-  const n = Math.max(2, [...new Set([...(LG.members || []), ...Object.keys(LGC)])].filter(id => id !== LG.gist).length + 1);
+  const n = Math.max(2, [...new Set([...(LG.members || []), ...Object.keys(LGC)])].filter(id => !isMe(id)).length + 1);
   $('tRounds').value = Math.ceil(Math.log2(n)) || 1; $('tRoundsWrap').hidden = $('tFmt').value === 'ko';
   renderTourn(); const d = $('tDlg'); d.showModal ? d.showModal() : d.setAttribute('open', '');
 }
@@ -4741,9 +4805,9 @@ function tableImage({ title, sub, cols, rows, extra = [], fname }) {
   const d = $('imgDlg'); d.showModal ? d.showModal() : d.setAttribute('open', '');
 }
 $('lgImg').onclick = () => {
-  const me = LG.gist;
-  const ids = [...new Set([LG.gist, ...(LG.members || []), ...Object.keys(LGC)].filter(Boolean))];
-  const st = ids.map(id => { const gs = (id === me ? myLigaFile() : LGC[id] || {}).games || []; const w = gs.filter(g => g[2] === 'W').length; return { name: id === me ? (LG.name || 'Tú') : friendName(id), n: gs.length, w, l: gs.length - w }; })
+  const me = myLigaId();
+  const ids = [...new Set([me, ...(LG.members || []), ...Object.keys(LGC)].filter(id => id && (id === me || !isMe(id))))];
+  const st = ids.map(id => { const gs = (id === me ? myLigaFile() : LGC[id] || {}).games || []; const w = gs.filter(g => g[2] === 'W').length; return { name: id === me ? (LG.name || myNick() || 'Tú') : friendName(id), n: gs.length, w, l: gs.length - w }; })
     .filter(s2 => s2.n || s2.name).sort((a, b) => (b.n ? b.w / b.n : -1) - (a.n ? a.w / a.n : -1) || b.w - a.w);
   tableImage({ title: 'Liga', sub: `${st.length} jugadores · ${st.reduce((t2, s2) => t2 + s2.n, 0)} partidas apuntadas`, cols: ['#', 'Jugador', 'PJ', 'V', 'D', '%'],
     rows: st.map((s2, i) => [i + 1, s2.name, s2.n, s2.w, s2.l, s2.n ? Math.round(s2.w / s2.n * 100) + ' %' : '–']), fname: 'liga-vobaca' });
@@ -4760,11 +4824,11 @@ $('tImg').onclick = () => {
 // ---- Resultados por confirmar en la liga ----
 const invSets = s2 => (s2 || '').replace(/^(\d+)\s*-\s*(\d+)$/, '$2-$1');
 function ligaPending() {
-  if (!LG.on || !LG.gist) return [];
-  const me = LG.gist, dis = new Set(LG.dis || []), out = [];
+  if (!LG.on || !myLigaId()) return [];
+  const mine0 = [...myLigaIds()], dis = new Set(LG.dis || []), out = [];
   Object.entries(LGC).forEach(([fid, f]) => {
-    if (fid === me) return;
-    const theirs = (f.games || []).filter(g => g[3] === me && !(g[8] && String(g[8]).startsWith(me + ':')));
+    if (isMe(fid)) return;
+    const theirs = (f.games || []).filter(g => isMe(g[3]) && !(g[8] && mine0.some(me => String(g[8]).startsWith(me + ':'))));
     // Partidas que ya apuntaste tú ese día contra él con el resultado contrario cuentan como confirmadas
     const mine = Object.values(GAMES).filter(x => x.friend === fid && !x.del);
     const used = new Set();
@@ -4799,7 +4863,7 @@ function paintPending() {
   });
 }
 // Al abrir la app, mira si hay resultados por confirmar (sin esperar a abrir la liga)
-setTimeout(() => { if (LG.on && SY.token) ligaFetch().then(paintPending).catch(() => {}); else paintPending(); }, 3000);
+setTimeout(() => { if (LG.on && ligaReady()) ligaFetch().then(paintPending).catch(() => {}); else paintPending(); }, 3000);
 
 // ---- Ver un mazo compartido sin importarlo ----
 let VIEW = null;
@@ -5131,7 +5195,7 @@ function paintAccount() {
   $('ghNote').textContent = on ? (SY.token ? '· solo para la liga, de momento' : '· ya no hace falta para tus mazos') : AC.ok ? '· método antiguo' : '';
 }
 async function refreshMe() {
-  try { const r = await fh('/api/me'); AC.user = r.user; SY.user = { name: r.user.name, nick: r.user.nick }; saveSY(); }
+  try { const r = await fh('/api/me'); AC.user = r.user; SY.user = { id: r.user.id, name: r.user.name, nick: r.user.nick }; saveSY(); }
   catch (e) { if (e.status === 401) { AC.user = null; if (SY.acct) { SY.acct = false; SY.ready = !!SY.token; saveSY(); } } }
   paintAccount();
 }
@@ -5163,7 +5227,7 @@ $('acDel').onclick = async () => {
   toast('Cuenta borrada.');
 };
 $('acNickSave').onclick = async () => {
-  try { const r = await fh('/api/me', { method: 'PATCH', body: JSON.stringify({ nick: $('acNick').value }) }); AC.user = r.user; SY.user = { name: r.user.name, nick: r.user.nick }; saveSY(); paintAccount(); toast('Nombre de jugador guardado.'); }
+  try { const r = await fh('/api/me', { method: 'PATCH', body: JSON.stringify({ nick: $('acNick').value }) }); AC.user = r.user; SY.user = { id: r.user.id, name: r.user.name, nick: r.user.nick }; saveSY(); paintAccount(); ligaSoon(); toast('Nombre de jugador guardado.'); }
   catch (e) { alert(e.message); }
 };
 $('acNick').onkeydown = e => { if (e.key === 'Enter') $('acNickSave').click(); };

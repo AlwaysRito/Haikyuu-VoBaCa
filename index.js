@@ -49,7 +49,8 @@ async function ensureSchema(env) {
       nick TEXT, nick_lc TEXT UNIQUE, sync_rev INTEGER NOT NULL DEFAULT 0, created INTEGER, seen INTEGER)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS sessions (hash TEXT PRIMARY KEY, user_id TEXT NOT NULL, created INTEGER, expires INTEGER, ua TEXT)`),
     env.DB.prepare(`CREATE INDEX IF NOT EXISTS sessions_user ON sessions(user_id)`),
-    env.DB.prepare(`CREATE TABLE IF NOT EXISTS userdata (user_id TEXT NOT NULL, k TEXT NOT NULL, v TEXT NOT NULL, updated INTEGER, PRIMARY KEY (user_id, k))`)
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS userdata (user_id TEXT NOT NULL, k TEXT NOT NULL, v TEXT NOT NULL, updated INTEGER, PRIMARY KEY (user_id, k))`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS liga (user_id TEXT PRIMARY KEY, gist TEXT UNIQUE, data TEXT NOT NULL, updated INTEGER)`)
   ]);
   schemaReady = true;
 }
@@ -144,6 +145,7 @@ async function api(req, env, url) {
     needSameApp(req); const u = await needUser(req, env);
     await env.DB.batch([
       env.DB.prepare('DELETE FROM userdata WHERE user_id = ?').bind(u.id),
+      env.DB.prepare('DELETE FROM liga WHERE user_id = ?').bind(u.id),
       env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(u.id),
       env.DB.prepare('DELETE FROM users WHERE id = ?').bind(u.id)
     ]);
@@ -173,5 +175,61 @@ async function api(req, env, url) {
     return json({ ok: true, rev: (+b.rev || 0) + 1 });
   }
 
+  // ---- Liga con amigos ----
+  // Cada jugador publica su «hoja de liga» (sus partidas contra amigos); la clasificación junta las de todos.
+  // Los jugadores se identifican como «a-<id de cuenta>». Quien venía de la liga con Gist puede enlazar su Gist antiguo,
+  // y así las partidas que sus amigos apuntaron contra ese Gist siguen contando.
+  if (p === '/api/liga' && m === 'PUT') {
+    needSameApp(req); const u = await needUser(req, env), b = await readJson(req);
+    const file = b.file && typeof b.file === 'object' ? b.file : null; if (!file) throw new HttpError(400, 'Falta la hoja de liga.', 'bad_liga');
+    const data = JSON.stringify(file); if (data.length > MAX_VALUE) throw new HttpError(413, 'La hoja de liga es demasiado grande.', 'too_big');
+    const old = await env.DB.prepare('SELECT gist FROM liga WHERE user_id = ?').bind(u.id).first();
+    let gist = old ? old.gist : null;
+    const want = String(b.gist || '').toLowerCase();
+    if (want && want !== gist) {   // enlazar un Gist antiguo: hay que demostrar que es tuyo (su hoja debe decir esta cuenta)
+      if (!/^[0-9a-f]{20,40}$/.test(want)) throw new HttpError(400, 'Código de Gist no válido.', 'bad_gist');
+      const taken = await env.DB.prepare('SELECT user_id FROM liga WHERE gist = ? AND user_id != ?').bind(want, u.id).first();
+      if (taken) throw new HttpError(409, 'Ese Gist ya está enlazado a otra cuenta.', 'gist_taken');
+      if (!(await gistClaims(want, 'a-' + u.id))) throw new HttpError(403, 'No se ha podido comprobar que ese Gist es tuyo.', 'gist_unverified');
+      gist = want;
+    }
+    await env.DB.prepare('INSERT INTO liga (user_id, gist, data, updated) VALUES (?, ?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET gist = excluded.gist, data = excluded.data, updated = excluded.updated')
+      .bind(u.id, gist, data, now()).run();
+    return json({ ok: true, id: 'a-' + u.id, gist: gist || '' });
+  }
+  if (p === '/api/liga' && m === 'GET') {
+    await needUser(req, env);
+    const ids = [...new Set((url.searchParams.get('ids') || '').split(',').map(x => x.trim()).filter(Boolean))].slice(0, 60);
+    const players = {};
+    for (const id of ids) {
+      let row = null;
+      if (/^a-[A-Za-z0-9_-]{6,40}$/.test(id)) row = await env.DB.prepare('SELECT l.user_id, l.gist, l.data, l.updated, u.nick, u.name FROM liga l JOIN users u ON u.id = l.user_id WHERE l.user_id = ?').bind(id.slice(2)).first();
+      else if (/^[0-9a-f]{20,40}$/i.test(id)) row = await env.DB.prepare('SELECT l.user_id, l.gist, l.data, l.updated, u.nick, u.name FROM liga l JOIN users u ON u.id = l.user_id WHERE l.gist = ?').bind(id.toLowerCase()).first();
+      if (!row) continue;
+      let file = null; try { file = JSON.parse(row.data); } catch (e) {}
+      players[id] = { id: 'a-' + row.user_id, nick: row.nick || '', gist: row.gist || '', updated: row.updated, file };
+    }
+    return json({ players });
+  }
+  if (p === '/api/users' && m === 'GET') {   // buscar a un amigo por su nombre de jugador
+    await needUser(req, env);
+    const nick = String(url.searchParams.get('nick') || '').trim().toLowerCase();
+    if (nick.length < 2) throw new HttpError(400, 'Escribe el nombre de jugador.', 'bad_nick');
+    const u2 = await env.DB.prepare('SELECT id, nick FROM users WHERE nick_lc = ?').bind(nick).first();
+    if (!u2) throw new HttpError(404, 'No hay nadie con ese nombre de jugador.', 'no_user');
+    return json({ id: 'a-' + u2.id, nick: u2.nick });
+  }
+
   throw new HttpError(404, 'No existe: ' + p, 'not_found');
+}
+
+// Comprueba en GitHub que la hoja de liga de ese Gist dice pertenecer a esta cuenta (solo su dueño puede escribir en él)
+async function gistClaims(gistId, acctId) {
+  try {
+    const r = await fetch('https://api.github.com/gists/' + gistId, { headers: { 'User-Agent': 'fly-high-vobaca', Accept: 'application/vnd.github+json' } });
+    if (!r.ok) return false;
+    const g = await r.json(), f = g.files && g.files['vobaca-liga.json']; if (!f) return false;
+    let txt = f.content; if (f.truncated && f.raw_url) txt = await (await fetch(f.raw_url, { headers: { 'User-Agent': 'fly-high-vobaca' } })).text();
+    const j = JSON.parse(txt); return j && j.acct === acctId;
+  } catch (e) { return false; }
 }

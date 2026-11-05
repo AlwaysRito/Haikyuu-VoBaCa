@@ -1,0 +1,20 @@
+// Fly High VoBaCa · configuración del Worker de Cloudflare
+// Cloudflare la usa al desplegar (comando «npx wrangler deploy»).
+{
+  "name": "fly-high-vobaca",
+  "main": "worker/index.js",
+  "compatibility_date": "2025-09-01",
+  // Los archivos de la web (este mismo repositorio). Lo que empieza por /api/ lo atiende el código del servidor.
+  "assets": {
+    "directory": "./",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  // Base de datos de cuentas y sincronización. Cambia el database_id por el de tu base de datos D1.
+  "d1_databases": [
+    { "binding": "DB", "database_name": "fly-high-vobaca", "database_id": "PEGA_AQUI_EL_ID_DE_D1" }
+  ],
+  // No borrar las variables puestas a mano en el panel de Cloudflare al desplegar
+  "keep_vars": true,
+  "observability": { "enabled": true }
+}

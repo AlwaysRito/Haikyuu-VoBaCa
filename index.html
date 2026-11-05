@@ -30,7 +30,10 @@
 // Así basta con subir el archivo nuevo: este enlace siempre lleva a la última versión.
 // Para poder instalarla como app (y abrirla sin conexión)
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
-(async () => {
+// La web se ha mudado a Cloudflare: quien entre por la dirección antigua de GitHub va a la nueva (con el #… para no perder mazos ni marcador)
+const NEW_HOME = 'https://fly-high-vobaca.haikyuu.workers.dev/';
+if (location.hostname.endsWith('.github.io')) { document.getElementById('msg').textContent = 'La web se ha mudado. Abriendo la nueva dirección…'; location.replace(NEW_HOME + location.hash); }
+else (async () => {
   const hash = location.hash;   // conserva #vbimp=… (mazos enviados por el marcador)
   const go = f => location.replace(f + hash);
   const ver = f => (f.match(/v(\d+)\.(\d+)(?:\.(\d+))?\.html$/) || []).slice(1).map(x => +(x || 0));

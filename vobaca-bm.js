@@ -1,6 +1,6 @@
-/* Vobaca Proxies · script para la web oficial de Takara Tomy
+/* Fly High VoBaCa · script para la web oficial de Takara Tomy
    Lo carga el marcador «Vobaca». Funciona en tres modos:
-   1. Sin nada más: lee el mazo oficial abierto (o pide un código) y lo manda a Vobaca Proxies.
+   1. Sin nada más: lee el mazo oficial abierto (o pide un código) y lo manda a Fly High VoBaCa.
    2. #vobaca=… con a:'img': dibuja la imagen del mazo con las cartas reales.
    3. #vobaca=… con a:'build': rellena el constructor oficial con el mazo para guardarlo y obtener un código oficial.
    4. #vobaca=… con a:'cards': busca cartas que la herramienta aún no tiene y se las manda.
@@ -29,13 +29,13 @@
     return pack(data).then(function (z) {
       var url = HOME + '#' + param + '=' + z;
       box('<b>' + esc(title) + '</b>' + lines.map(function (l) { return '<span>' + l + '</span>'; }).join('') +
-        (HOME ? '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">' + closeBtn + '<a style="' + B1 + '" href="' + esc(url) + '">Abrir en Vobaca Proxies</a></div>'
-          : '<span style="color:#b00">Este marcador no sabe dónde está tu herramienta. Instala el marcador desde tu web de Vobaca Proxies.</span><div style="display:flex;justify-content:flex-end">' + closeBtn + '</div>'));
+        (HOME ? '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">' + closeBtn + '<a style="' + B1 + '" href="' + esc(url) + '">Abrir en Fly High VoBaCa</a></div>'
+          : '<span style="color:#b00">Este marcador no sabe dónde está tu herramienta. Instala el marcador desde tu web de Fly High VoBaCa.</span><div style="display:flex;justify-content:flex-end">' + closeBtn + '</div>'));
     });
   }
   // Idioma: el que manda la herramienta (payload.ui); si no, el del navegador
   var EN = false;
-  var T_EN = [["Este marcador no sabe dónde está tu herramienta. Instala el marcador desde tu web de Vobaca Proxies.", "This bookmarklet doesn't know where your tool is. Install the bookmarklet from your Vobaca Proxies site."], ["Usa el marcador en la web oficial de Vobaca (takaratomy.co.jp).", "Use the bookmarklet on the official Vobaca site (takaratomy.co.jp)."], ["Preparando la imagen del mazo…", "Preparing the deck image…"], ["Imagen del mazo", "Deck image"], [" imágenes no se han podido cargar.", " images could not be loaded."], ["Mantén pulsada la imagen para guardarla, o usa los botones.", "Long-press the image to save it, or use the buttons."], [">Compartir<", ">Share<"], [">Descargar<", ">Download<"], [">Cerrar<", ">Close<"], [">Copiar<", ">Copy<"], [">Entendido<", ">Got it<"], ["Cargando el mazo en el constructor oficial…", "Loading the deck into the official builder…"], ["Tarda unos segundos.", "It takes a few seconds."], ["Mazo cargado en el constructor oficial", "Deck loaded into the official builder"], [" cartas · ", " cards · "], [" eventos", " events"], ["no encontradas: ", "not found: "], ["Revisa el mazo y pulsa el botón de guardar de la web (", "Check the deck and press the site's save button ("], ["). Te dará el ", "). It will give you the "], ["código oficial</b> del mazo.", "official code</b> of the deck."], ["La web oficial solo deja guardar mazos de <b>40 cartas</b> con <b>8 eventos como máximo</b>. Ajusta el mazo aquí mismo o en Vobaca Proxies antes de guardar.", "The official site only saves decks of <b>40 cards</b> with <b>at most 8 events</b>. Adjust the deck here or in Vobaca Proxies before saving."], ["Opcional: en «デッキ情報を追加» puedes poner autor y etiquetas. Marca «デッキ検索に掲載する» solo si quieres que salga en la búsqueda pública.", "Optional: in «デッキ情報を追加» you can add an author and tags. Tick «デッキ検索に掲載する» only if you want it to appear in the public search."], ["No se ha podido cargar el mazo en el constructor: ", "Couldn't load the deck into the builder: "], ["no se encuentra el constructor", "the builder can't be found"], ["Buscando cartas nuevas en la web oficial…", "Looking for new cards on the official site…"], ["No hay cartas nuevas", "No new cards"], ["Tu herramienta ya tiene las ", "Your tool already has all "], [" cartas de la web oficial.", " cards from the official site."], ["Cartas nuevas encontradas", "New cards found"], [" japonesas y ", " Japanese and "], [" inglesas que tu herramienta aún no tiene.", " English cards your tool doesn't have yet."], ["Pulsa «Abrir en Vobaca Proxies» para añadirlas.", "Press «Open in Vobaca Proxies» to add them."], ["Descargando los mazos públicos…", "Downloading the public decks…"], [" mazos públicos descargados", " public decks downloaded"], ["Pulsa «Abrir en Vobaca Proxies» para verlos, filtrarlos e importarlos.", "Press «Open in Vobaca Proxies» to see, filter and import them."], ["Código de mazo oficial de Vobaca", "Official Vobaca deck code"], ["No existe ningún mazo con el código ", "There is no deck with the code "], ["Pulsa «Abrir en Vobaca Proxies» para cargarlo como mazo nuevo, o copia la lista.", "Press «Open in Vobaca Proxies» to load it as a new deck, or copy the list."], [">Abrir en Vobaca Proxies<", ">Open in Vobaca Proxies<"], ["¡Copiada!", "Copied!"], ["Selecciónala y cópiala", "Select it and copy it"], ["Este enlace no es de Vobaca Proxies.", "This link is not from Vobaca Proxies."], ["Error: ", "Error: "], [" cartas", " cards"]];
+  var T_EN = [["Este marcador no sabe dónde está tu herramienta. Instala el marcador desde tu web de Fly High VoBaCa.", "This bookmarklet doesn't know where your tool is. Install the bookmarklet from your Fly High VoBaCa site."], ["Usa el marcador en la web oficial de Vobaca (takaratomy.co.jp).", "Use the bookmarklet on the official Vobaca site (takaratomy.co.jp)."], ["Preparando la imagen del mazo…", "Preparing the deck image…"], ["Imagen del mazo", "Deck image"], [" imágenes no se han podido cargar.", " images could not be loaded."], ["Mantén pulsada la imagen para guardarla, o usa los botones.", "Long-press the image to save it, or use the buttons."], [">Compartir<", ">Share<"], [">Descargar<", ">Download<"], [">Cerrar<", ">Close<"], [">Copiar<", ">Copy<"], [">Entendido<", ">Got it<"], ["Cargando el mazo en el constructor oficial…", "Loading the deck into the official builder…"], ["Tarda unos segundos.", "It takes a few seconds."], ["Mazo cargado en el constructor oficial", "Deck loaded into the official builder"], [" cartas · ", " cards · "], [" eventos", " events"], ["no encontradas: ", "not found: "], ["Revisa el mazo y pulsa el botón de guardar de la web (", "Check the deck and press the site's save button ("], ["). Te dará el ", "). It will give you the "], ["código oficial</b> del mazo.", "official code</b> of the deck."], ["La web oficial solo deja guardar mazos de <b>40 cartas</b> con <b>8 eventos como máximo</b>. Ajusta el mazo aquí mismo o en Fly High VoBaCa antes de guardar.", "The official site only saves decks of <b>40 cards</b> with <b>at most 8 events</b>. Adjust the deck here or in Fly High VoBaCa before saving."], ["Opcional: en «デッキ情報を追加» puedes poner autor y etiquetas. Marca «デッキ検索に掲載する» solo si quieres que salga en la búsqueda pública.", "Optional: in «デッキ情報を追加» you can add an author and tags. Tick «デッキ検索に掲載する» only if you want it to appear in the public search."], ["No se ha podido cargar el mazo en el constructor: ", "Couldn't load the deck into the builder: "], ["no se encuentra el constructor", "the builder can't be found"], ["Buscando cartas nuevas en la web oficial…", "Looking for new cards on the official site…"], ["No hay cartas nuevas", "No new cards"], ["Tu herramienta ya tiene las ", "Your tool already has all "], [" cartas de la web oficial.", " cards from the official site."], ["Cartas nuevas encontradas", "New cards found"], [" japonesas y ", " Japanese and "], [" inglesas que tu herramienta aún no tiene.", " English cards your tool doesn't have yet."], ["Pulsa «Abrir en Fly High VoBaCa» para añadirlas.", "Press «Open in Fly High VoBaCa» to add them."], ["Descargando los mazos públicos…", "Downloading the public decks…"], [" mazos públicos descargados", " public decks downloaded"], ["Pulsa «Abrir en Fly High VoBaCa» para verlos, filtrarlos e importarlos.", "Press «Open in Fly High VoBaCa» to see, filter and import them."], ["Código de mazo oficial de Vobaca", "Official Vobaca deck code"], ["No existe ningún mazo con el código ", "There is no deck with the code "], ["Pulsa «Abrir en Fly High VoBaCa» para cargarlo como mazo nuevo, o copia la lista.", "Press «Open in Fly High VoBaCa» to load it as a new deck, or copy the list."], [">Abrir en Fly High VoBaCa<", ">Open in Fly High VoBaCa<"], ["¡Copiada!", "Copied!"], ["Selecciónala y cópiala", "Select it and copy it"], ["Este enlace no es de Fly High VoBaCa.", "This link is not from Fly High VoBaCa."], ["Error: ", "Error: "], [" cartas", " cards"]];
   var T = function (s2) { if (!EN) return s2; s2 = String(s2); T_EN.forEach(function (p) { s2 = s2.split(p[0]).join(p[1]); }); return s2; };
   function box(inner) {
     inner = T(inner);
@@ -48,7 +48,7 @@
     return d;
   }
   var closeBtn = '<button data-close style="' + B2 + '">Cerrar</button>';
-  function fail(msg) { box('<b>Vobaca Proxies</b><span>' + esc(msg) + '</span><div style="display:flex;justify-content:flex-end">' + closeBtn + '</div>'); }
+  function fail(msg) { box('<b>Fly High VoBaCa</b><span>' + esc(msg) + '</span><div style="display:flex;justify-content:flex-end">' + closeBtn + '</div>'); }
 
   if (!/takaratomy\.co\.jp$/.test(location.hostname)) { alert(/^es/i.test(navigator.language || 'es') ? 'Usa el marcador en la web oficial de Vobaca (takaratomy.co.jp).' : 'Use the bookmarklet on the official Vobaca site (takaratomy.co.jp).'); return; }
 
@@ -110,7 +110,7 @@
         });
         y += Math.ceil(rows.length / COLS) * (TH + 44) + 6;
       });
-      g.fillStyle = '#9aa5b4'; g.font = '500 18px ' + FN; g.fillText('Vobaca Proxies · ' + new Date().toLocaleDateString('es-ES'), PAD, H - 34);
+      g.fillStyle = '#9aa5b4'; g.font = '500 18px ' + FN; g.fillText('Fly High VoBaCa · ' + new Date().toLocaleDateString('es-ES'), PAD, H - 34);
       var fname = (String(P.name || '').replace(/[\\/:*?"<>|]+/g, '').trim() || 'mazo') + '.png';
       return new Promise(function (res) { cv.toBlob(res, 'image/png'); }).then(function (blob) {
         var u = URL.createObjectURL(blob), miss = ids.length - Object.keys(imgs).length;
@@ -159,7 +159,7 @@
       var d = box('<b>Mazo cargado en el constructor oficial</b>' +
         '<span>' + cards.length + ' cartas · ' + ev + ' eventos' + (missing.length ? ' · <span style="color:#b9770e">no encontradas: ' + esc(missing.join(', ')) + '</span>' : '') + '</span>' +
         (ok ? '<span>Revisa el mazo y pulsa el botón de guardar de la web (<b>デッキの保存</b>). Te dará el <b>código oficial</b> del mazo.</span>'
-          : '<span style="color:#b00">La web oficial solo deja guardar mazos de <b>40 cartas</b> con <b>8 eventos como máximo</b>. Ajusta el mazo aquí mismo o en Vobaca Proxies antes de guardar.</span>') +
+          : '<span style="color:#b00">La web oficial solo deja guardar mazos de <b>40 cartas</b> con <b>8 eventos como máximo</b>. Ajusta el mazo aquí mismo o en Fly High VoBaCa antes de guardar.</span>') +
         '<span style="font-size:13px;color:#555">Opcional: en «デッキ情報を追加» puedes poner autor y etiquetas. Marca «デッキ検索に掲載する» solo si quieres que salga en la búsqueda pública.</span>' +
         '<div style="display:flex;justify-content:flex-end"><button data-close style="' + B1 + '">Entendido</button></div>');
     }).catch(function (e) { fail('No se ha podido cargar el mazo en el constructor: ' + e.message); });
@@ -193,7 +193,7 @@
       var total = res[0].length + res[1].length;
       if (!jp.length && !en.length) { box('<b>No hay cartas nuevas</b><span>Tu herramienta ya tiene las ' + total + ' cartas de la web oficial.</span><div style="display:flex;justify-content:flex-end">' + closeBtn + '</div>'); return; }
       return sendBack('vbcards', { v: 1, date: new Date().toISOString(), jp: jp, en: en }, 'Cartas nuevas encontradas',
-        [jp.length + ' japonesas y ' + en.length + ' inglesas que tu herramienta aún no tiene.', 'Pulsa «Abrir en Vobaca Proxies» para añadirlas.']);
+        [jp.length + ' japonesas y ' + en.length + ' inglesas que tu herramienta aún no tiene.', 'Pulsa «Abrir en Fly High VoBaCa» para añadirlas.']);
     });
   }
 
@@ -212,12 +212,12 @@
             (d.recommendation_card_no_1 || ''), (d.cards || []).map(function (c) { return [c.card_no + '-' + c.image_end, +c.count || 1, c.category === 'EVENT' ? 'E' : (c.role === 'フリー' ? '' : c.role || '')]; })];
         });
         return sendBack('vbdecks', { v: 1, date: new Date().toISOString(), decks: decks }, decks.length + ' mazos públicos descargados',
-          ['Pulsa «Abrir en Vobaca Proxies» para verlos, filtrarlos e importarlos.']);
+          ['Pulsa «Abrir en Fly High VoBaCa» para verlos, filtrarlos e importarlos.']);
       });
     });
   }
 
-  // ---------- Modo 1: mazo oficial → Vobaca Proxies ----------
+  // ---------- Modo 1: mazo oficial → Fly High VoBaCa ----------
   function importOfficial() {
     var k = (location.search.match(/deck_key=([A-Za-z0-9]+)/) || [])[1] || prompt(T('Código de mazo oficial de Vobaca'));
     if (!k) return;
@@ -232,10 +232,10 @@
       });
       var t = '# ' + (j.deck.name || k) + '\n' + o.map(function (id) { return m[id] + ' ' + id; }).join('\n');
       var d = box('<b>' + j.deck.cards.length + ' cartas · «' + esc(j.deck.name || k) + '»</b>' +
-        (HOME ? '<span style="font-size:14px;color:#555">Pulsa «Abrir en Vobaca Proxies» para cargarlo como mazo nuevo, o copia la lista.</span>' : '') +
+        (HOME ? '<span style="font-size:14px;color:#555">Pulsa «Abrir en Fly High VoBaCa» para cargarlo como mazo nuevo, o copia la lista.</span>' : '') +
         '<textarea readonly style="width:100%;height:180px;font:13px monospace;border:1px solid #ccc;border-radius:8px;padding:8px;box-sizing:border-box"></textarea>' +
         '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><span id="vbm" style="margin-right:auto;align-self:center;color:' + ORANGE + '"></span>' +
-        '<button id="vbc" style="' + B2 + '">Copiar</button>' + (HOME ? '<a id="vbo" style="' + B1 + '">Abrir en Vobaca Proxies</a>' : '') + closeBtn + '</div>');
+        '<button id="vbc" style="' + B2 + '">Copiar</button>' + (HOME ? '<a id="vbo" style="' + B1 + '">Abrir en Fly High VoBaCa</a>' : '') + closeBtn + '</div>');
       var ta = d.querySelector('textarea'); ta.value = t;
       if (HOME) d.querySelector('#vbo').href = HOME + '#vbimp=' + b64u(t);
       d.querySelector('#vbc').onclick = function () {
@@ -249,6 +249,6 @@
   }
 
   var run = !payload ? importOfficial() : payload.a === 'img' ? drawImage(payload) : payload.a === 'build' ? build(payload)
-    : payload.a === 'cards' ? newCards(payload) : payload.a === 'decks' ? publicDecks() : (fail('Este enlace no es de Vobaca Proxies.'), null);
+    : payload.a === 'cards' ? newCards(payload) : payload.a === 'decks' ? publicDecks() : (fail('Este enlace no es de Fly High VoBaCa.'), null);
   if (run && run.catch) run.catch(function (e) { fail('Error: ' + e.message); });
 })();

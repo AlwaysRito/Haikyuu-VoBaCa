@@ -46,7 +46,9 @@ else (async () => {
     const onGh = location.hostname.endsWith('.github.io');
     const owner = onGh ? location.hostname.split('.')[0] : REPO_OWNER;
     const repo = onGh ? (location.pathname.split('/').filter(Boolean)[0] || owner + '.github.io') : REPO_NAME;
-    const r = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/`, { cache: 'no-store' });
+    // Si ya conocemos la última versión, no esperamos más de 1,5 s a GitHub (la propia herramienta avisa si hay otra nueva)
+    const ctl = new AbortController(); const tm = last ? setTimeout(() => ctl.abort(), 1500) : null;
+    const r = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/`, { cache: 'no-store', signal: ctl.signal }); if (tm) clearTimeout(tm);
     if (!r.ok) throw new Error(r.status);
     const all = (await r.json()).map(f => f.name), fh = all.filter(n => /^fly-high-vobaca-v[\d.]+\.html$/.test(n));
     const files = fh.length ? fh : all.filter(n => /^vobaca-proxies-v[\d.]+\.html$/.test(n));   // el nombre nuevo manda aunque su número sea menor

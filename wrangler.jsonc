@@ -12,7 +12,7 @@
   },
   // Base de datos de cuentas y sincronización. Cambia el database_id por el de tu base de datos D1.
   "d1_databases": [
-    { "binding": "DB", "database_name": "fly-high-vobaca", "database_id": "PEGA_AQUI_EL_ID_DE_D1" }
+    { "binding": "DB", "database_name": "fly-high-vobaca", "database_id": "6810d733-3251-4c4e-9b3b-3dfc1df91b4a" }
   ],
   // No borrar las variables puestas a mano en el panel de Cloudflare al desplegar
   "keep_vars": true,

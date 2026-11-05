@@ -54,7 +54,9 @@ async function ensureSchema(env) {
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS userdata (user_id TEXT NOT NULL, k TEXT NOT NULL, v TEXT NOT NULL, updated INTEGER, PRIMARY KEY (user_id, k))`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS liga (user_id TEXT PRIMARY KEY, gist TEXT UNIQUE, data TEXT NOT NULL, updated INTEGER)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS rooms (code TEXT PRIMARY KEY, host TEXT NOT NULL, guest TEXT, invitee TEXT, created INTEGER, updated INTEGER)`),
-    env.DB.prepare(`CREATE INDEX IF NOT EXISTS rooms_inv ON rooms(invitee)`)
+    env.DB.prepare(`CREATE INDEX IF NOT EXISTS rooms_inv ON rooms(invitee)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS friends (a TEXT NOT NULL, b TEXT NOT NULL, ok INTEGER NOT NULL DEFAULT 0, created INTEGER, PRIMARY KEY (a, b))`),
+    env.DB.prepare(`CREATE INDEX IF NOT EXISTS friends_b ON friends(b)`)
   ]);
   schemaReady = true;
 }
@@ -150,6 +152,7 @@ async function api(req, env, url) {
     await env.DB.batch([
       env.DB.prepare('DELETE FROM userdata WHERE user_id = ?').bind(u.id),
       env.DB.prepare('DELETE FROM liga WHERE user_id = ?').bind(u.id),
+      env.DB.prepare('DELETE FROM friends WHERE a = ? OR b = ?').bind(u.id, u.id),
       env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(u.id),
       env.DB.prepare('DELETE FROM users WHERE id = ?').bind(u.id)
     ]);
@@ -224,6 +227,43 @@ async function api(req, env, url) {
     return json({ id: 'a-' + u2.id, nick: u2.nick });
   }
 
+  // ---- Amigos (con solicitud: uno la manda y el otro la acepta) ----
+  if (p === '/api/friends' && m === 'GET') {
+    const u = await needUser(req, env);
+    const r = await env.DB.prepare(`SELECT f.a, f.b, f.ok, f.created, ua.nick AS na, ub.nick AS nb FROM friends f JOIN users ua ON ua.id = f.a JOIN users ub ON ub.id = f.b WHERE f.a = ? OR f.b = ?`).bind(u.id, u.id).all();
+    const out = { friends: [], incoming: [], outgoing: [] };
+    (r.results || []).forEach(x => {
+      const other = x.a === u.id ? { id: 'a-' + x.b, nick: x.nb || '' } : { id: 'a-' + x.a, nick: x.na || '' };
+      other.since = x.created;
+      if (x.ok) out.friends.push(other); else if (x.b === u.id) out.incoming.push(other); else out.outgoing.push(other);
+    });
+    out.friends.sort((p1, p2) => p1.nick.localeCompare(p2.nick));
+    return json(out);
+  }
+  if (p === '/api/friends' && m === 'POST') {   // { nick } o { id }: manda una solicitud (o acepta la que ya te mandó)
+    needSameApp(req); const u = await needUser(req, env), b = await readJson(req);
+    let t = null;
+    if (b.id) t = await env.DB.prepare('SELECT id, nick FROM users WHERE id = ?').bind(String(b.id).replace(/^a-/, '')).first();
+    else if (b.nick) t = await env.DB.prepare('SELECT id, nick FROM users WHERE nick_lc = ?').bind(String(b.nick).trim().toLowerCase()).first();
+    if (!t) throw new HttpError(404, 'No hay nadie con ese nombre de jugador.', 'no_user');
+    if (t.id === u.id) throw new HttpError(400, 'Ese eres tú.', 'self');
+    const rev = await env.DB.prepare('SELECT ok FROM friends WHERE a = ? AND b = ?').bind(t.id, u.id).first();
+    if (rev) { await env.DB.prepare('UPDATE friends SET ok = 1 WHERE a = ? AND b = ?').bind(t.id, u.id).run(); return json({ ok: true, status: 'friends', id: 'a-' + t.id, nick: t.nick }); }
+    const mine = await env.DB.prepare('SELECT ok FROM friends WHERE a = ? AND b = ?').bind(u.id, t.id).first();
+    if (!mine) await env.DB.prepare('INSERT INTO friends (a, b, ok, created) VALUES (?, ?, 0, ?)').bind(u.id, t.id, now()).run();
+    return json({ ok: true, status: mine && mine.ok ? 'friends' : 'sent', id: 'a-' + t.id, nick: t.nick });
+  }
+  const fa = p.match(/^\/api\/friends\/(accept|remove)$/);
+  if (fa && m === 'POST') {   // aceptar una solicitud, o quitar amigo / rechazar / cancelar
+    needSameApp(req); const u = await needUser(req, env), b = await readJson(req);
+    const o = String(b.id || '').replace(/^a-/, ''); if (!o) throw new HttpError(400, 'Falta el amigo.', 'bad_id');
+    if (fa[1] === 'accept') {
+      const r = await env.DB.prepare('UPDATE friends SET ok = 1 WHERE a = ? AND b = ?').bind(o, u.id).run();
+      if (!r.meta || !r.meta.changes) throw new HttpError(404, 'Esa solicitud ya no existe.', 'no_request');
+    } else await env.DB.prepare('DELETE FROM friends WHERE (a = ? AND b = ?) OR (a = ? AND b = ?)').bind(u.id, o, o, u.id).run();
+    return json({ ok: true });
+  }
+
   // ---- Simulador: salas para jugar online ----
   if (p === '/api/rooms' && m === 'POST') {
     needSameApp(req); const u = await needUser(req, env), b = await readJson(req);
@@ -254,6 +294,18 @@ async function api(req, env, url) {
       FROM rooms r JOIN users h ON h.id = r.host LEFT JOIN users g ON g.id = r.guest
       WHERE (r.host = ? OR r.guest = ? OR r.invitee = ?) AND r.created > ? ORDER BY r.created DESC LIMIT 20`).bind(u.id, u.id, u.id, now() - 2 * 864e5).all();
     return json({ rooms: (r.results || []).map(x => ({ code: x.code, host: x.hnick || '', guest: x.gnick || '', mine: x.host === u.id, invited: x.invitee === u.id && !x.guest, created: x.created })) });
+  }
+  const rd = p.match(/^\/api\/rooms\/([A-Z0-9]{6})$/);
+  if (rd && m === 'DELETE') {   // cerrar una sala (quien la creó o el rival)
+    needSameApp(req); const u = await needUser(req, env);
+    const row = await env.DB.prepare('SELECT code, host, guest, invitee FROM rooms WHERE code = ?').bind(rd[1]).first();
+    if (!row) return json({ ok: true });
+    if (row.host !== u.id && row.guest !== u.id && row.invitee !== u.id) throw new HttpError(403, 'Esa sala no es tuya.', 'not_yours');
+    if (row.host === u.id || row.guest === u.id) {
+      try { await env.ROOMS.get(env.ROOMS.idFromName(row.code)).fetch('https://room/close', { method: 'POST', body: JSON.stringify({ nick: u.nick || u.name || '' }) }); } catch (e) {}
+      await env.DB.prepare('DELETE FROM rooms WHERE code = ?').bind(row.code).run();
+    } else await env.DB.prepare('UPDATE rooms SET invitee = NULL WHERE code = ?').bind(row.code).run();   // rechazar un reto
+    return json({ ok: true });
   }
   const rm = p.match(/^\/api\/rooms\/([A-Z0-9]{6})\/ws$/);
   if (rm && m === 'GET') {
@@ -291,8 +343,15 @@ export class Room {
       G.code = b.code; G.invitee = b.invitee || null; G.seats[0] = { uid: b.host.uid, nick: b.host.nick, on: false };
       this.G = G; await this.save(); return new Response('ok');
     }
+    if (url.pathname === '/close') {
+      const G = await this.load(); if (!G) return new Response('ok');
+      const b = await req.json().catch(() => ({}));
+      G.closed = true; await this.save();
+      for (const ws of this.ctx.getWebSockets()) { this.send(ws, { closed: true, by: b.nick || '' }); try { ws.close(1000, 'closed'); } catch (e) {} }
+      return new Response('ok');
+    }
     if (url.pathname === '/ws') {
-      const G = await this.load(); if (!G) return new Response('no room', { status: 404 });
+      const G = await this.load(); if (!G || G.closed) return new Response('no room', { status: 404 });
       const uid = req.headers.get('X-Uid'), nick = decodeURIComponent(req.headers.get('X-Nick') || 'Jugador');
       let seat = G.seats.findIndex(x => x && x.uid === uid);
       if (seat < 0) {

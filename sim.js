@@ -4,7 +4,7 @@
 //
 // Reglas (resumen del reglamento oficial): 40 cartas; mano inicial 6 con un cambio; 2 cartas de set boca abajo.
 // Primer turno de cada set: saque. Después, cada turno es de bloqueo (bloqueo) o de recepción (robo, recepción, colocación, ataque).
-// Contra un saque o un balón devuelto por un bloqueo solo se puede recibir. Defensa ≥ ataque = éxito; si no, «lost».
+// Contra un saque o un balón devuelto por un bloqueo solo se puede recibir; el balón bloqueado vuelve con 0 de ataque. Defensa ≥ ataque = éxito; si no, «lost».
 // Al perder un set coges una carta de set; si no te quedan, pierdes la partida. En el descanso, los dos roban hasta tener 6.
 
 export const ZONES = ['serve', 'block', 'receive', 'toss', 'attack'];
@@ -172,7 +172,7 @@ export function act(G, s, a) {
       if (st === 'serve') { const pw = zonePts(P, 'serve'); G.ball = { power: pw, kind: 'serve', from: s }; log(G, s, 'serve', { p: pw }); endTurn(G, s); }
       else if (st === 'block') {
         const t = zonePts(P, 'block'), need = G.ball ? G.ball.power : 0;
-        if (t >= need) { G.ball = { power: t, kind: 'block', from: s }; log(G, s, 'block', { p: t, vs: need, ok: true }); endTurn(G, s); }
+        if (t >= need) { G.ball = { power: 0, kind: 'block', from: s }; log(G, s, 'block', { p: t, vs: need, ok: true }); endTurn(G, s); }   // el balón devuelto por un bloqueo vuelve con 0
         else { log(G, s, 'block', { p: t, vs: need, ok: false }); lost(G, s, 'block'); }
       } else if (st === 'receive') {
         const t = zonePts(P, 'receive'), need = G.ball ? G.ball.power : 0;

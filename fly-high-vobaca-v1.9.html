@@ -203,6 +203,10 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center}
   box-shadow:0 0 0 .35cqw rgba(0,0,0,.18);-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .ovl .kw{display:inline-block;background:#1b2330;color:#fff;border-radius:.7cqw;padding:0 .9cqw;margin:0 .5cqw .3cqw 0;font-size:.92em;font-weight:600;line-height:1.35;white-space:nowrap;
   -webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ovl.drag{cursor:grab;touch-action:none;user-select:none}
+.ovl.drag:active{cursor:grabbing;box-shadow:0 0 0 .6cqw rgba(232,99,28,.8)}
+.ovl-h{position:absolute;left:50%;top:-1.6cqw;transform:translateX(-50%);width:12cqw;height:3.2cqw;border-radius:2cqw;background:#e8631c;cursor:ns-resize;box-shadow:0 .3cqw .8cqw rgba(0,0,0,.35)}
+@media print{.ovl-h{display:none}.ovl.drag{box-shadow:none}}
 .ovl .ann{display:block;margin-top:.6cqw;padding-top:.5cqw;border-top:.25cqw dashed rgba(0,0,0,.3);font-size:.82em;color:#333}
 .btn{border:0;border-radius:8px;padding:10px 14px;font:700 15px var(--display);letter-spacing:.06em;text-transform:uppercase;cursor:pointer;background:var(--accent);color:var(--accent-fg);white-space:nowrap}
 .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--fg)}
@@ -615,6 +619,12 @@ header .top{flex-wrap:nowrap}
 .pl-online .lg-row select,.pl-online .lg-row input,#plFriends .lg-row input,#lgTitleRow input{flex:1;min-width:0;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
 .sim-sub{color:var(--muted);font-size:13px;margin:0}
 
+.vs-tab{display:grid;gap:6px;margin-top:8px}
+.vs-r{display:grid;grid-template-columns:minmax(0,1fr) auto 70px 40px;gap:8px;align-items:center;font-size:14px}
+.vs-r span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vs-bar{display:block;height:8px;border-radius:4px;background:var(--line);overflow:hidden}
+.vs-bar i{display:block;height:100%;background:var(--accent)}
+.vs-r small{color:var(--muted);text-align:right}
 .sl-head{display:flex;gap:8px;align-items:center}
 .sl-name{flex:1;min-width:0;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--fg);font:700 20px var(--display);text-transform:uppercase;letter-spacing:.03em;padding:4px 6px}
 .sl-name:hover,.sl-name:focus{border-color:var(--line);background:var(--bg)}
@@ -899,6 +909,10 @@ body.sim-on{overflow:hidden}
       <summary>Estadísticas <small id="dkStatsSum"></small></summary>
       <div id="dkStats"></div>
     </details>
+    <details id="dkVsBox" open>
+      <summary>Cruces <small id="dkVsSum"></small></summary>
+      <div id="dkVs"></div>
+    </details>
     <details id="dkSugBox">
       <summary>Sugerencias <small id="dkSugSum"></small></summary>
       <div id="dkSug"></div>
@@ -1062,7 +1076,7 @@ body.sim-on{overflow:hidden}
       </div>
       <details class="lay" id="iLay" hidden>
         <summary>Ajustar el recuadro en el proxy</summary>
-        <p class="lay-hint">Mueve los bordes si el recuadro tapa algún dato de la carta o no cubre todo el texto. El ajuste se guarda para esta versión de la carta.</p>
+        <p class="lay-hint">También puedes <b>arrastrar el recuadro</b> en la imagen: por el medio se mueve entero y con el asa naranja de arriba cambia el alto. El ajuste se guarda para esta versión de la carta.</p>
         <div class="lay-grid">
           <label for="lyTop">Borde de arriba</label><input type="range" id="lyTop" min="25" max="85" step="0.5"><output id="lyTopV"></output>
           <label for="lyBot">Borde de abajo</label><input type="range" id="lyBot" min="0" max="35" step="0.2"><output id="lyBotV"></output>
@@ -2708,6 +2722,34 @@ function fitOverlay(o) {
   }
   o.dataset.fitTop = top; o.dataset.fitFs = size;
 }
+// Arrastrar el recuadro: en el medio se mueve entero; con el asa de arriba cambia el alto. Se guarda para esa versión de la carta.
+function ovlDrag(o, id, after) {
+  if (!o || o.dataset.drag) return; o.dataset.drag = '1'; o.classList.add('drag');
+  const h = document.createElement('span'); h.className = 'ovl-h'; h.title = 'Arrastra para cambiar el alto del recuadro'; o.appendChild(h);
+  o.title = 'Arrastra para mover el recuadro';
+  o.addEventListener('pointerdown', e => {
+    if (e.button > 0) return;
+    const box = o.parentElement.getBoundingClientRect(), resize = e.target === h, L0 = LAY[id] || {};
+    const top0 = +(L0.top != null ? L0.top : (o.dataset.fitTop || o.dataset.top)), bot0 = +(L0.bot != null ? L0.bot : LAY_DEF.bot), y0 = e.clientY;
+    let t = top0, bt = bot0, moved = false;
+    try { o.setPointerCapture(e.pointerId); } catch (er) {}
+    e.preventDefault(); e.stopPropagation();
+    const mv = ev => {
+      const d = (ev.clientY - y0) / box.height * 100; if (Math.abs(d) > .3) moved = true;
+      t = Math.max(15, Math.min(90, top0 + d)); bt = resize ? bot0 : Math.max(0, Math.min(45, bot0 - (t - top0)));
+      if (100 - bt - t < 8) t = 100 - bt - 8;
+      o.style.top = t + '%'; o.style.bottom = bt + '%';
+    };
+    const up = () => {
+      o.removeEventListener('pointermove', mv); o.removeEventListener('pointerup', up); o.removeEventListener('pointercancel', up);
+      if (!moved) return;
+      const L = LAY[id] = { ...(LAY[id] || {}) }; L.top = Math.round(t * 2) / 2; if (!resize) L.bot = Math.round(bt * 5) / 5; L.t = Date.now();
+      o.dataset.top = L.top; saveLAY(); if (after) after(o);
+    };
+    o.addEventListener('pointermove', mv); o.addEventListener('pointerup', up); o.addEventListener('pointercancel', up);
+  });
+  o.addEventListener('click', e => e.stopPropagation());
+}
 // Controles de ajuste en la ficha
 function paintLay(o) {
   const show = !!o; $('iLay').hidden = !show; if (!show) return;
@@ -2735,7 +2777,7 @@ $('lyAuto').onchange = () => setLay('fs', $('lyAuto').checked ? null : +$('lyFs'
 $('lyReset').onclick = () => { LAY[infoId] = { t: Date.now() }; saveLAY(); refreshInfoOverlay(); };
 function refreshInfoOverlay() {
   const o = $('iPrev').checked ? addOverlay($('iCardBox'), infoId) : ($('iCardBox').querySelectorAll('.ovl').forEach(x => x.remove()), null);
-  if (o) requestAnimationFrame(() => { fitOverlay(o); paintLay(o); });
+  if (o) requestAnimationFrame(() => { fitOverlay(o); paintLay(o); ovlDrag(o, infoId, () => refreshInfoOverlay()); });
   else paintLay(null);
 }
 function setOvl(on) { OVL = on; try { localStorage.setItem('vobaca-ovl', on ? '1' : '0'); } catch (e) {} $('ovlOn').checked = on; }
@@ -3110,7 +3152,7 @@ function renderSheets() {
     all.slice(p, p + 9).forEach(id => { const c = document.createElement('div'); c.className = 'card'; const pid = printImg(id); c.innerHTML = `<img alt="" src="${imgOf(pid)}">`; if (OVL && pid === id) addOverlay(c, id); g.appendChild(c); });
     sheet.appendChild(g); wrap.appendChild(sheet); out.appendChild(wrap);
   }
-  if (OVL) requestAnimationFrame(() => out.querySelectorAll('.ovl').forEach(fitOverlay));
+  if (OVL) requestAnimationFrame(() => out.querySelectorAll('.ovl').forEach(o => { fitOverlay(o); ovlDrag(o, o.dataset.id, x => fitOverlay(x)); }));
   const miss = OVL ? missingTr() : [];
   $('ovlInfo').hidden = !miss.length;
   if (miss.length) $('ovlMissing').textContent = `${miss.length} ${miss.length === 1 ? 'carta japonesa no tiene' : 'cartas japonesas no tienen'} traducción todavía.`;
@@ -4309,7 +4351,7 @@ function simBig(c, cls) {
   return d;
 }
 const bigPH = c => c ? `<div class="sim-big-ph" data-u="${esc(c.u || '')}" data-id="${esc(c.id || '')}" data-img="${esc(c.img || '')}" data-tr="${esc(c.tr || '')}"></div>` : '';
-function hydrateBig(root) { root.querySelectorAll('.sim-big-ph').forEach(ph => { const el = simBig({ id: ph.dataset.id, img: ph.dataset.img, tr: ph.dataset.tr || '' }, 'sim-big'); ph.replaceWith(el); }); }
+function hydrateBig(root) { root.querySelectorAll('.sim-big-ph').forEach(ph => { const el = simBig({ id: ph.dataset.id, img: ph.dataset.img, tr: ph.dataset.tr || '' }, 'sim-big'); ph.replaceWith(el); const o = el.querySelector('.ovl'); if (o) requestAnimationFrame(() => requestAnimationFrame(() => ovlDrag(o, ph.dataset.id, x => fitOverlay(x)))); }); }
 // Al pasar el ratón por una carta (en el PC), se ve en grande al lado
 (function simHoverPeek() {
   if (!matchMedia('(hover: hover)').matches) return;
@@ -4573,6 +4615,7 @@ function renderDeckExtra() {
   if (document.activeElement !== $('dkNotes')) $('dkNotes').value = decks[cur].notes || '';
   paintNotesSum();
   const gs = gamesOf(decks[cur].id), w = gs.filter(g => g.res === 'W').length;
+  renderVs(gs);
   $('dkGamesSum').textContent = gs.length ? `${w}-${gs.length - w} · ${pctTxt(w, gs.length)} de victorias` : 'ninguna todavía';
   const byOpp = {};
   gs.forEach(g => { const k = g.opp || ''; (byOpp[k] = byOpp[k] || [0, 0])[g.res === 'W' ? 0 : 1]++; });
@@ -4902,6 +4945,18 @@ function pubRoleStats(school) {
   }));
   Object.values(out).forEach(o => { o.avg = avgOf(o.vals); o.per = o.copies / list.length; });
   return { n: list.length, by: out };
+}
+// Cruces del mazo: cómo le va contra cada instituto (partidas apuntadas a mano, del marcador, de la liga y del simulador)
+function renderVs(gs) {
+  gs = gs || gamesOf(decks[cur].id);
+  const w = gs.filter(g => g.res === 'W').length;
+  $('dkVsSum').textContent = gs.length ? `· V${w} - D${gs.length - w}` : '';
+  if (!gs.length) { $('dkVs').innerHTML = '<p class="hint" style="text-align:left;margin:4px 0 0">Aún no hay partidas con este mazo. Se apuntan solas al acabar una partida online, o a mano en Jugar → Apuntar partida.</p>'; return; }
+  const by = {}; gs.forEach(g => { const k = g.opp || ''; (by[k] = by[k] || [0, 0])[g.res === 'W' ? 0 : 1]++; });
+  $('dkVs').innerHTML = '<div class="vs-tab">' + Object.entries(by).sort((a, b) => (b[1][0] + b[1][1]) - (a[1][0] + a[1][1])).map(([k, [ww, ll]]) => {
+    const p = Math.round(ww / (ww + ll) * 100);
+    return `<div class="vs-r"><span>Vs ${esc(k ? (SCHOOL_ES[k] || k) : 'otros')}</span><b>V${ww} - D${ll}</b><i class="vs-bar"><i style="width:${p}%"></i></i><small>${p} %</small></div>`;
+  }).join('') + '</div>';
 }
 function renderDeckStats() {
   const box = $('dkStats');

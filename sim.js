@@ -2,7 +2,7 @@
 // Lo usa el servidor (cada sala online) y puede usarlo la propia web. El tablero guía las fases, coloca cada carta en su zona,
 // suma la potencia del balón y la defensa y declara el «lost»; las habilidades y eventos se aplican a mano (±puntos, mover cartas…).
 //
-// Reglas (resumen del reglamento oficial): 40 cartas; mano inicial 6 con un cambio; 2 cartas de set boca abajo.
+// Reglas (resumen del reglamento oficial): 40 cartas; mano inicial 6 con un cambio; después, 2 cartas de set boca abajo.
 // Primer turno de cada set: saque. Después, cada turno es de bloqueo (bloqueo) o de recepción (robo, recepción, colocación, ataque).
 // Contra un saque o un balón devuelto por un bloqueo solo se puede recibir; el balón bloqueado vuelve con 0 de ataque. Defensa ≥ ataque = éxito; si no, «lost».
 // Al perder un set coges una carta de set; si no te quedan, pierdes la partida. En el descanso, los dos roban hasta tener 6.
@@ -37,7 +37,7 @@ const spikePts = P => zonePts(P, 'toss') + zonePts(P, 'attack');
 
 function cleanCard(G, c) {
   const st = Array.isArray(c.st) ? c.st.slice(0, 5).map(v => (typeof v === 'number' && isFinite(v)) ? Math.max(-99, Math.min(99, Math.round(v))) : null) : [null, null, null, null, null];
-  return { u: 'c' + (++G.uid), id: String(c.id || '').slice(0, 40), no: String(c.no || '').slice(0, 30), n: String(c.n || '').slice(0, 60), en: String(c.en || '').slice(0, 60), st, ev: !!c.ev, img: /^https:\/\//.test(c.img || '') ? String(c.img).slice(0, 300) : '' };
+  return { u: 'c' + (++G.uid), id: String(c.id || '').slice(0, 40), no: String(c.no || '').slice(0, 30), n: String(c.n || '').slice(0, 60), en: String(c.en || '').slice(0, 60), st, ev: !!c.ev, img: /^https:\/\//.test(c.img || '') ? String(c.img).slice(0, 300) : '', tr: typeof c.tr === 'string' ? c.tr.slice(0, 1500) : '' };
 }
 function draw(G, s, n) { const P = G.p[s]; let k = 0; while (k < n && P.deck.length) { P.hand.push(P.deck.shift()); k++; } P.peek = 0; return k; }
 
@@ -47,7 +47,6 @@ function setup(G) {
     Object.assign(P, newPlayer(), keep);
     P.deck = shuffle(P.list.map(c => cleanCard(G, c)));
     for (let i = 0; i < HAND0; i++) if (P.deck.length) P.hand.push(P.deck.shift());
-    for (let i = 0; i < 2; i++) if (P.deck.length) P.set.push(P.deck.shift());
   });
   G.phase = 'mull'; G.turn = -1; G.server = -1; G.setNo = 0; G.step = ''; G.ball = null; G.placed = []; G.winner = -1; G.again = [false, false];
   log(G, -1, 'setup');
@@ -99,7 +98,7 @@ export function act(G, s, a) {
       if (G.phase !== 'lobby' && G.phase !== 'over') no('La partida ya ha empezado.');
       const list = Array.isArray(a.cards) ? a.cards : [];
       if (list.length < 10 || list.length > MAX_DECK) no('El mazo debe tener entre 10 y 60 cartas.');
-      P.list = list.slice(0, MAX_DECK).map(c => ({ id: c.id, no: c.no, n: c.n, en: c.en, st: c.st, ev: c.ev, img: c.img }));
+      P.list = list.slice(0, MAX_DECK).map(c => ({ id: c.id, no: c.no, n: c.n, en: c.en, st: c.st, ev: c.ev, img: c.img, tr: c.tr }));
       P.deckName = String(a.name || '').slice(0, 60);
       if (G.phase === 'over') G.phase = 'lobby';
       log(G, s, 'ready', { name: P.deckName, n: list.length });
@@ -119,6 +118,7 @@ export function act(G, s, a) {
       const back = us.map(u => P.hand.splice(findHand(u), 1)[0]);
       if (back.length) { P.deck.push(...back); shuffle(P.deck); draw(G, s, back.length); }
       P.mull = true; log(G, s, 'mull', { n: back.length });
+      for (let i = 0; i < 2; i++) if (P.deck.length) P.set.push(P.deck.shift());   // las 2 cartas de set se ponen después de decidir la mano
       if (G.p[0].mull && G.p[1].mull) startMatch(G);
       break;
     }

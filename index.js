@@ -406,7 +406,27 @@ export class Room {
   async save() { await this.ctx.storage.put('G', this.G); }
   send(ws, obj) { try { ws.send(JSON.stringify(obj)); } catch (e) {} }
   broadcast() {
-    for (const ws of this.ctx.getWebSockets()) { const at = ws.deserializeAttachment() || {}; this.send(ws, { code: this.G.code, view: view(this.G, at.seat) }); }
+    const H = this.H || [], last = H[H.length - 1];
+    for (const ws of this.ctx.getWebSockets()) { const at = ws.deserializeAttachment() || {}; this.send(ws, { code: this.G.code, view: view(this.G, at.seat), undo: last && last.by === at.seat ? last.k : '' }); }
+  }
+  // Deshacer: antes de cada acción se guarda una copia (sin la lista del mazo ni el registro); solo puedes deshacer la tuya si el rival no ha jugado después
+  async loadH() { if (!this.H) this.H = (await this.ctx.storage.get('H')) || []; return this.H; }
+  snapshot() { const c = structuredClone(this.G); delete c.log; c.p.forEach(P => { delete P.list; }); return c; }
+  async pushH(seat, k, snap) {
+    const H = await this.loadH(), key = 'h' + Date.now() + Math.floor(Math.random() * 1e6);
+    await this.ctx.storage.put(key, snap); H.push({ by: seat, k, key });
+    while (H.length > 8) { const o = H.shift(); await this.ctx.storage.delete(o.key); }
+    await this.ctx.storage.put('H', H);
+  }
+  async undo(ws, seat) {
+    const H = await this.loadH(), last = H[H.length - 1];
+    if (!last || last.by !== seat) { this.send(ws, { err: last ? 'Tu rival ya ha jugado después: no se puede deshacer.' : 'No hay nada que deshacer.' }); return; }
+    const snap = await this.ctx.storage.get(last.key); H.pop(); await this.ctx.storage.delete(last.key); await this.ctx.storage.put('H', H);
+    if (!snap) { this.send(ws, { err: 'No se ha podido deshacer.' }); return; }
+    const G = this.G; snap.p.forEach((P, i) => { P.list = G.p[i].list; });
+    snap.log = G.log; snap.seats = G.seats; snap.v = G.v + 1; snap.code = G.code; snap.invitee = G.invitee;
+    snap.log.push({ t: Date.now(), s: seat, k: 'undo', a: { what: last.k } });
+    this.G = snap; await this.save(); this.broadcast();
   }
   async fetch(req) {
     const url = new URL(req.url);
@@ -444,9 +464,12 @@ export class Room {
     const at = ws.deserializeAttachment() || {}; const G = await this.load(); if (!G) return;
     let a; try { a = JSON.parse(typeof msg === 'string' ? msg : new TextDecoder().decode(msg)); } catch (e) { return; }
     if (a.type === 'ping') { this.send(ws, { pong: Date.now() }); return; }
-    if (a.type === 'hello') { this.send(ws, { code: G.code, view: view(G, at.seat) }); return; }
+    if (a.type === 'hello') { const H = await this.loadH(), l = H[H.length - 1]; this.send(ws, { code: G.code, view: view(G, at.seat), undo: l && l.by === at.seat ? l.k : '' }); return; }
+    if (a.type === 'undo') { await this.undo(ws, at.seat); return; }
+    const undoable = !['chat', 'deck', 'again', 'peek'].includes(a.type);
+    const snap = undoable ? this.snapshot() : null;
     try {
-      if (act(G, at.seat, a)) { await this.save(); this.broadcast(); }
+      if (act(G, at.seat, a)) { if (snap) await this.pushH(at.seat, a.type, snap); else if (a.type === 'deck' || a.type === 'again') { for (const h of await this.loadH()) await this.ctx.storage.delete(h.key); this.H = []; await this.ctx.storage.put('H', []); } await this.save(); this.broadcast(); }
     } catch (e) {
       this.send(ws, { err: e instanceof SimError ? e.message : 'Error: ' + (e && e.message || e), id: a.id || null });
       if (!(e instanceof SimError)) console.error(e);

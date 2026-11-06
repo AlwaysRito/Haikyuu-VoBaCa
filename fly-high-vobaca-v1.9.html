@@ -4204,6 +4204,7 @@ function simLobby(v, me, op) {
   return d;
 }
 function simCoin(v, op) {
+  if (v.server !== 0 && v.server !== 1) return `<div class="sim-coin"><span class="coin">🏐</span><div><b>Sorteo del saque</b><small>Se sorteará al empezar la partida.</small></div></div>`;
   const meSrv = v.server === v.you, fresh = v.coinT && Date.now() - v.coinT < 6000 && SIM.coinSeen !== v.coinT;
   if (fresh) SIM.coinSeen = v.coinT;
   return `<div class="sim-coin${fresh ? ' spin' : ''}"><span class="coin ${meSrv ? 'me' : 'op'}">🏐</span><div><b>${meSrv ? '¡Sacas tú!' : `Saca ${esc(op.nick || 'tu rival')}`}</b><small>Sorteado al azar antes de cambiar la mano.</small></div></div>`;

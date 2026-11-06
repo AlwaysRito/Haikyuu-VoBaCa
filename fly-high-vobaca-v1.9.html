@@ -723,15 +723,20 @@ body.sim-on{overflow:hidden}
 .sim-hand .sc.peek{opacity:.85;border:2px dashed #ffd27a}
 .sc-hint{position:absolute;left:3px;bottom:3px;min-width:20px;height:20px;border-radius:10px;background:rgba(0,0,0,.75);color:#fff;font:800 12px/20px var(--display);text-align:center;padding:0 4px}
 .sim-peek{align-self:center;color:#ffd27a;font-size:12px;white-space:nowrap}
-.sim-sheet{position:fixed;left:0;right:0;bottom:0;z-index:25;max-height:78dvh;overflow:auto;background:#1a2028;border-top:1px solid #323b48;border-radius:16px 16px 0 0;padding:14px 14px calc(16px + env(safe-area-inset-bottom,0px));box-shadow:0 -10px 30px rgba(0,0,0,.5);display:grid;gap:10px}
+.sim-sheet{position:fixed;left:50%;transform:translateX(-50%);width:min(100%,440px);bottom:0;z-index:25;max-height:58dvh;overflow:auto;background:#1a2028;border:1px solid #323b48;border-bottom:0;border-radius:14px 14px 0 0;padding:10px 12px calc(12px + env(safe-area-inset-bottom,0px));box-shadow:0 -10px 30px rgba(0,0,0,.5);display:grid;gap:8px;font-size:14px}
 .sim-sheet[hidden]{display:none}
-.sim-sheet h3{margin:0;font:700 18px var(--display);text-transform:uppercase;padding-right:44px}
+.sim-sheet h3{margin:0;font:700 16px var(--display);text-transform:uppercase;padding-right:40px}
+.sim-sheet .dlg-x{width:32px;height:32px;margin-bottom:-32px;font-size:15px}
+.sim-sheet .btn{padding:7px 10px;font-size:13px}
+.sim-sheet .pl-btns .btn{flex:1 1 80px}
+.sim-tl{grid-template-columns:1fr 1fr}
+.sim-sheet .sim-sub{font-size:12px}
 .sim-sheet .dlg-x{background:#1e2530;color:#fff;border-color:#323b48}
 .sim-big{width:min(240px,60vw);border-radius:10px;justify-self:center;display:block}
 .sim-pts{margin:0}.sim-pts b{color:var(--accent);font-size:18px}
 .sim-list{display:grid;gap:6px}
-.sim-lr{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:8px;align-items:center}
-.sim-lr img{width:40px;border-radius:4px;cursor:pointer}
+.sim-lr{display:grid;grid-template-columns:32px minmax(0,1fr) auto;gap:8px;align-items:center}
+.sim-lr img{width:32px;border-radius:3px;cursor:pointer}
 .sim-lr b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sim-lr small{color:#9aa5b4;font-size:12px}
 .sim-lr select{background:#11151b;color:#e7ebf1;border:1px solid #323b48;border-radius:6px;padding:5px;max-width:130px}
@@ -775,6 +780,13 @@ body.sim-on{overflow:hidden}
 .dg-card.cur{outline:2px solid var(--accent)}
 .dg-new{display:grid;place-items:center;min-height:180px;border:2px dashed var(--line);background:transparent;color:var(--muted);font:700 16px var(--display);text-transform:uppercase}
 .dk-flex{flex:1}
+#dgTagsHome details{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:10px 12px}
+#dgTagsHome summary{font-weight:700;cursor:pointer}
+.tg-row{display:flex;gap:8px;align-items:center;padding:6px 4px;border-radius:8px}
+.tg-row span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.tg-row small{color:var(--muted)}
+.tg-grip{cursor:grab;color:var(--muted);font-size:16px}
+.tg-row.dragging{opacity:.4}.tg-row.over{background:var(--bg);box-shadow:inset 0 2px 0 var(--accent)}
 @media (max-width:600px){.dg-bar{grid-template-columns:1fr 1fr}.dg-bar input{grid-column:1/-1}.dg-acts .btn{flex:1 1 30%;padding-left:6px;padding-right:6px}}
 #deckView:has(> #dgView:not([hidden])){max-width:1240px}
 @media (min-width:1000px){.dg-grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}.dg-cover{height:140px}}
@@ -784,7 +796,8 @@ body.sim-on{overflow:hidden}
 .sim .sc .ovl{pointer-events:none}
 .sim-prox{position:relative;container-type:inline-size;aspect-ratio:63/88;border-radius:3.6cqw;overflow:hidden;background:#2b3140}
 .sim-prox img{width:100%;height:100%;object-fit:cover;display:block}
-.sim-sheet .sim-big{width:min(300px,72vw);justify-self:center}
+.sim-sheet .sim-big{width:min(190px,46vw);justify-self:center}
+@media (min-width:900px){.sim-sheet .sim-big{width:220px}}
 #simPeekBig{position:fixed;z-index:40;pointer-events:none;filter:drop-shadow(0 10px 24px rgba(0,0,0,.6))}
 #simPeekBig[hidden]{display:none}
 .sim-peek-big{width:100%}
@@ -863,6 +876,7 @@ body.sim-on{overflow:hidden}
       <div class="dg-acts"><button class="btn" id="dgNew" type="button">+ Nuevo mazo</button><button class="btn ghost" id="dgImport" type="button">Importar</button><button class="btn ghost" id="dgPub" type="button">Mazos públicos</button></div>
     </div>
     <div id="dgList"></div>
+    <div id="dgTagsHome"></div>
   </div>
   <div class="dk-head">
     <div class="dk-top">
@@ -3925,6 +3939,8 @@ $('dgGroup').onchange = () => { DG_GROUP = $('dgGroup').value; try { localStorag
 $('dgNew').onclick = () => { $('dkNew').click(); };
 $('dgImport').onclick = () => $('listBtn').onclick();
 $('dgPub').onclick = () => $('dkPub').click();
+// el gestor de etiquetas pasa a la galería (antes estaba en «Mis mazos»)
+(function () { const det = $('tgMan').closest('details'); if (det) { det.querySelector('summary').textContent = 'Gestionar y ordenar etiquetas'; $('dgTagsHome').appendChild(det); det.addEventListener('toggle', () => { if (det.open) renderTagMan(); }); } })();
 $('dkBack').onclick = () => { save(); DK_OPEN = false; setView('deck'); };
 setTimeout(() => { DK_READY = true; }, 0);
 
@@ -5351,9 +5367,17 @@ function renderTagMan() {
   l.forEach(t => {
     const n = decks.filter(d => (d.tags || []).includes(t)).length;
     const row = document.createElement('div');
-    row.innerHTML = `<span></span><small>${n} ${n === 1 ? 'mazo' : 'mazos'}</small><button type="button" class="linkbtn" data-a="up">↑</button><button type="button" class="linkbtn" data-a="ren">Renombrar</button><button type="button" class="linkbtn" data-a="del">Borrar</button>`;
+    row.draggable = true; row.dataset.tag = t; row.className = 'tg-row';
+    row.innerHTML = `<b class="tg-grip" title="Arrastra para ordenar">⠿</b><span></span><small>${n} ${n === 1 ? 'mazo' : 'mazos'}</small><button type="button" class="linkbtn" data-a="up" title="Subir">↑</button><button type="button" class="linkbtn" data-a="down" title="Bajar">↓</button><button type="button" class="linkbtn" data-a="ren">Renombrar</button><button type="button" class="linkbtn" data-a="del">Borrar</button>`;
     row.querySelector('span').textContent = t;
-    row.querySelector('[data-a="up"]').onclick = () => { const L = tagList(), i = L.indexOf(t); if (i > 0) { [L[i - 1], L[i]] = [L[i], L[i - 1]]; TAGS.list = L; saveTAGS(); renderTagMan(); renderDeckLib(); renderDeckPicker(); paintDeckMeta(); } };
+    const moveTag = (from, to) => { const L = tagList(); if (to < 0 || to >= L.length || from === to) return; const [x] = L.splice(from, 1); L.splice(to, 0, x); TAGS.list = L; TAGS.t = Date.now(); saveTAGS(); renderTagMan(); renderDeckLib(); renderDeckPicker(); paintDeckMeta(); try { if (view === 'deck' && !DK_OPEN) renderGallery(); } catch (e) {} };
+    row.querySelector('[data-a="up"]').onclick = () => { const i = tagList().indexOf(t); moveTag(i, i - 1); };
+    row.querySelector('[data-a="down"]').onclick = () => { const i = tagList().indexOf(t); moveTag(i, i + 1); };
+    row.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', t); row.classList.add('dragging'); });
+    row.addEventListener('dragend', () => row.classList.remove('dragging'));
+    row.addEventListener('dragover', e => { e.preventDefault(); row.classList.add('over'); });
+    row.addEventListener('dragleave', () => row.classList.remove('over'));
+    row.addEventListener('drop', e => { e.preventDefault(); row.classList.remove('over'); const src = e.dataTransfer.getData('text/plain'), L = tagList(); moveTag(L.indexOf(src), L.indexOf(t)); });
     row.querySelector('[data-a="ren"]').onclick = () => {
       const nn = (prompt('Nuevo nombre para «' + t + '»:', t) || '').trim().slice(0, 24); if (!nn || nn === t) return;
       TAGS.list = tagList().map(x => x === t ? nn : x).filter((x, i, a) => a.indexOf(x) === i);

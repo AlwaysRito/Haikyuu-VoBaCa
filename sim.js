@@ -43,7 +43,7 @@ function draw(G, s, n) { const P = G.p[s]; let k = 0; while (k < n && P.deck.len
 
 function setup(G) {
   G.p.forEach(P => {
-    const keep = { list: P.list, deckName: P.deckName };
+    const keep = { list: P.list, deckName: P.deckName, school: P.school };
     Object.assign(P, newPlayer(), keep);
     P.deck = shuffle(P.list.map(c => cleanCard(G, c)));
     for (let i = 0; i < HAND0; i++) if (P.deck.length) P.hand.push(P.deck.shift());
@@ -82,8 +82,8 @@ function lost(G, s, why) {
   G.p[w].sets++;
   G.p.forEach(P => { if (P.side.length) { P.drop.push(...P.side); P.side = []; } });
   if (!L.set.length) { G.phase = 'over'; G.winner = w; G.step = ''; G.ball = null; log(G, w, 'win'); return; }
-  L.hand.push(L.set.pop());
-  G.p.forEach((P, i) => { const n = Math.max(0, HAND0 - P.hand.length); if (n) draw(G, i, n); });
+  L.hand.push(L.set.pop()); log(G, s, 'setcard', { left: L.set.length });   // el que pierde el set coge una de sus cartas de set
+  G.p.forEach((P, i) => { const n = Math.max(0, HAND0 - P.hand.length); if (n) { const k = draw(G, i, n); log(G, i, 'refill', { n: k }); } });
   G.setNo++;
   startSet(G, w);
 }
@@ -100,7 +100,7 @@ export function act(G, s, a) {
       const list = Array.isArray(a.cards) ? a.cards : [];
       if (list.length < 10 || list.length > MAX_DECK) no('El mazo debe tener entre 10 y 60 cartas.');
       P.list = list.slice(0, MAX_DECK).map(c => ({ id: c.id, no: c.no, n: c.n, en: c.en, st: c.st, ev: c.ev, img: c.img, tr: c.tr }));
-      P.deckName = String(a.name || '').slice(0, 60);
+      P.deckName = String(a.name || '').slice(0, 60); P.school = String(a.school || '').slice(0, 40);
       if (G.phase === 'over') G.phase = 'lobby';
       log(G, s, 'ready', { name: P.deckName, n: list.length });
       if (G.p[0].list && G.p[1].list && G.seats[0] && G.seats[1]) setup(G);
@@ -265,6 +265,7 @@ export function act(G, s, a) {
 // Lo que ve cada jugador: su mano completa; del rival, solo cuántas cartas tiene en la mano, el mazo y el set
 export function view(G, s) {
   const pub = (P, i) => ({ nick: G.seats[i] ? G.seats[i].nick : '', on: !!(G.seats[i] && G.seats[i].on), ready: !!P.list, deckName: P.deckName, handN: P.hand.length, deckN: P.deck.length, setN: P.set.length, drop: P.drop, ev: P.ev, z: P.z, side: P.side, mod: P.mod, sets: P.sets, mull: P.mull, again: G.again[i],
+    ...(G.phase === 'over' ? { school: P.school || '', acct: G.seats[i] ? 'a-' + G.seats[i].uid : '' } : {}),
     pts: { serve: zonePts(P, 'serve'), block: zonePts(P, 'block'), receive: zonePts(P, 'receive'), toss: zonePts(P, 'toss'), attack: zonePts(P, 'attack'), spike: spikePts(P) } });
   const me = s === 0 || s === 1 ? s : -1;
   const players = G.p.map((P, i) => i === me ? { ...pub(P, i), hand: P.hand, peek: P.deck.slice(0, P.peek) } : pub(P, i));

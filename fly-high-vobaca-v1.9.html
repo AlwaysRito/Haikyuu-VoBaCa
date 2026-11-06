@@ -692,6 +692,7 @@ body.sim-on{overflow:hidden}
 .sp-set{background:repeating-linear-gradient(45deg,#2456c9 0 6px,#1d47a8 6px 12px)}
 .sp.target{outline:3px solid #fff;box-shadow:0 0 0 6px rgba(232,99,28,.85)}
 .sim-over{position:absolute;inset:auto 12px 12px;background:rgba(17,21,27,.95);border:1px solid #2a323e;border-radius:14px;padding:14px;text-align:center;z-index:4}
+.sim-rec{color:#c9d1dc;font-size:14px}.sim-rec b{color:var(--accent)}
 .sim-over h2{margin:0 0 4px;font:700 24px var(--display);text-transform:uppercase;color:var(--accent)}
 /* barra inferior del simulador */
 .sim-log{display:block;width:100%;text-align:left;border:0;background:#151a21;color:#9aa5b4;font:500 12px var(--body);padding:5px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
@@ -4049,7 +4050,13 @@ function simConnect() {
     let j; try { j = JSON.parse(e.data); } catch (er) { return; }
     if (j.closed) { SIM.closing = true; simClose(); toast(j.by ? `${j.by} ha cerrado la sala.` : 'La sala se ha cerrado.', 5000); return; }
     if (j.err) { simToast(j.err); return; }
-    if (j.view) { SIM.v = j.view; SIM.undo = j.undo || ''; simRender(); }
+    if (j.view) {
+      if (!SIM.v && j.view.phase === 'over') { try { const dn = JSON.parse(localStorage.getItem('fh-simrec') || '{}'); SIM.rec = dn[SIM.code + ':' + (j.view.coinT || j.view.log.length)] || null; } catch (e) {} }
+      const prev = SIM.v; SIM.v = j.view; SIM.undo = j.undo || '';
+      if (prev && prev.phase !== 'over' && j.view.phase === 'over') simRecord(j.view);
+      simRender();
+      if (prev && prev.phase === 'play' && j.view.setNo > prev.setNo) { const e = j.view.log.slice().reverse().find(x => x.k === 'setcard'); if (e) simToast(e.s === j.view.you ? 'Set para tu rival: coges una carta de set a la mano.' : 'Set para ti: tu rival coge una carta de set.'); }
+    }
   };
   ws.onclose = () => {
     if (SIM.closing) return;
@@ -4070,6 +4077,27 @@ let simToastT = null;
 function simToast(m) { const t = $('simToast'); t.textContent = m; t.hidden = false; clearTimeout(simToastT); simToastT = setTimeout(() => { t.hidden = true; }, 3500); }
 window.addEventListener('popstate', () => { if (!$('simView').hidden && !/#sala=/.test(location.hash)) simClose(); });
 
+// --- Al acabar la partida: se apunta en el mazo usado (y cuenta en la liga si el rival es un jugador de ella) ---
+function simRecord(v) {
+  const me = v.players[v.you], op = v.players[1 - v.you]; if (!op || v.winner < 0) return;
+  const key = SIM.code + ':' + (v.coinT || v.log.length);
+  let done = {}; try { done = JSON.parse(localStorage.getItem('fh-simrec') || '{}'); } catch (e) {}
+  if (done[key]) { SIM.rec = done[key]; return; }
+  const d = decks.find(x => x.id === SIM.deckId) || decks[cur];
+  const g = { deck: d.id, date: new Date().toISOString().slice(0, 10), res: v.winner === v.you ? 'W' : 'L', sets: `${me.sets}-${op.sets}`, opp: op.school || '', oppTxt: op.deckName || '', note: 'Partida online (simulador)', friend: op.acct || '', t: Date.now() };
+  try { Object.assign(g, verTag(d)); } catch (e) {}
+  g.date = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  const k = newId(); GAMES[k] = g; saveGAMES(); try { ligaSoon(); } catch (e) {}
+  done[key] = { deck: d.id, opp: g.opp }; try { localStorage.setItem('fh-simrec', JSON.stringify(done)); } catch (e) {}
+  SIM.rec = done[key];
+}
+function simRecLine() {
+  const r = SIM.rec; if (!r) return '';
+  const d = decks.find(x => x.id === r.deck); if (!d) return '';
+  const gs = Object.values(GAMES).filter(g => g.deck === r.deck && (g.opp || '') === (r.opp || ''));
+  const w = gs.filter(g => g.res === 'W').length, l = gs.length - w;
+  return `<p class="sim-rec">Apuntada en «${esc(d.name || 'Mazo')}» · Vs ${esc(r.opp ? (SCHOOL_ES[r.opp] || r.opp) : 'otro instituto')}: <b>V${w} - D${l}</b></p>`;
+}
 // --- Texto del registro ---
 function simLogText(e, v) {
   const who = e.s >= 0 ? (e.s === v.you ? 'Tú' : (v.players[e.s].nick || 'Rival')) : '', a = e.a || {};
@@ -4078,9 +4106,9 @@ function simLogText(e, v) {
     serve: `${who} saca con ${a.p}.`, block: a.ok ? `${who} bloquea: ${a.p} contra ${a.vs}. El balón vuelve con 0.` : `${who} no llega con el bloqueo (${a.p} contra ${a.vs}).`, receive: a.ok ? `${who} recibe: ${a.p} contra ${a.vs}.` : `${who} no llega en la recepción (${a.p} contra ${a.vs}).`,
     toss: `${who} coloca (${a.p}).`, spike: `${who} remata con ${a.p}.`, lost: `${who} declara «lost».`, win: `¡${who === 'Tú' ? 'Has ganado' : who + ' gana'} la partida!`, event: `${who} juega el evento ${a.c}.`, mod: `${who}: ${zName(a.z).toLowerCase()} ${a.d > 0 ? '+' : ''}${a.d}.`, ballmod: `${who}: balón ${a.d > 0 ? '+' : ''}${a.d} (ahora ${a.p}).`,
     mdraw: `${who} roba ${a.n} por un efecto.`, shuffle: `${who} baraja su mazo.`, peek: `${who} mira ${a.n} ${a.n === 1 ? 'carta' : 'cartas'} de arriba de su mazo.`, guts: `${who} paga ${a.n} ${a.n === 1 ? 'agalla' : 'agallas'} de ${zName(a.z).toLowerCase()}.`,
-    move: `${who} mueve ${a.c || 'una carta'} (${simPlace(a.from)} → ${simPlace(a.to)}).`, concede: `${who} abandona la partida.`, undo: `${who} deshace su última acción (${UNDO_TXT[a.what] || a.what}).`, chat: `${who}: ${a.m}`, again: `${who} quiere la revancha.` };
+    move: `${who} mueve ${a.c || 'una carta'} (${simPlace(a.from)} → ${simPlace(a.to)}).`, concede: `${who} abandona la partida.`, setcard: `${who} pierde el set y coge una carta de set a la mano (${a.left === 0 ? 'ya no le quedan' : 'le queda' + (a.left === 1 ? ' 1' : 'n ' + a.left)}).`, refill: `Descanso: ${who} roba ${a.n} hasta tener 6.`, undo: `${who} deshace su última acción (${UNDO_TXT[a.what] || a.what}).`, chat: `${who}: ${a.m}`, again: `${who} quiere la revancha.` };
   let out = C[e.k] || e.k;
-  if (who === 'Tú') [[' roba', ' robas'], [' declara', ' declaras'], [' no llega', ' no llegas'], [' recibe', ' recibes'], [' bloquea', ' bloqueas'], [' saca', ' sacas'], [' remata', ' rematas'], [' coloca', ' colocas'], [' juega', ' juegas'], [' devuelve', ' devuelves'], [' mueve', ' mueves'], [' baraja', ' barajas'], [' mira', ' miras'], [' paga', ' pagas'], [' cambia', ' cambias'], [' se queda', ' te quedas'], [' ya tiene', ' ya tienes'], [' ha entrado', ' has entrado'], [' quiere', ' quieres'], [' abandona', ' abandonas'], [' no puede', ' no puedes'], [' deshace su', ' deshaces tu']].forEach(([x, y]) => { if (out.startsWith('Tú' + x)) out = 'Tú' + y + out.slice(2 + x.length); });
+  if (who === 'Tú') [[' roba', ' robas'], [' declara', ' declaras'], [' no llega', ' no llegas'], [' recibe', ' recibes'], [' bloquea', ' bloqueas'], [' saca', ' sacas'], [' remata', ' rematas'], [' coloca', ' colocas'], [' juega', ' juegas'], [' devuelve', ' devuelves'], [' mueve', ' mueves'], [' baraja', ' barajas'], [' mira', ' miras'], [' paga', ' pagas'], [' cambia', ' cambias'], [' se queda', ' te quedas'], [' ya tiene', ' ya tienes'], [' ha entrado', ' has entrado'], [' quiere', ' quieres'], [' abandona', ' abandonas'], [' no puede', ' no puedes'], [' deshace su', ' deshaces tu'], [' pierde el set y coge', ' pierdes el set y coges'], [' le queda', ' te queda']].forEach(([x, y]) => { if (out.startsWith('Tú' + x)) out = 'Tú' + y + out.slice(2 + x.length); });
   return out;
 }
 const simPlace = k => ({ hand: 'mano', drop: 'drop', ev: 'eventos', side: 'bloqueo lateral', set: 'set', deck: 'mazo', deckTop: 'arriba del mazo', deckBottom: 'abajo del mazo' })[k] || (k && k.startsWith('guts:') ? 'agallas de ' + zName(k.slice(5)).toLowerCase() : k && k.startsWith('top:') ? zName(k.slice(4)).toLowerCase() : ZN[k] ? zName(k).toLowerCase() : k || '');
@@ -4178,7 +4206,7 @@ function simRender() {
   body.appendChild(court);
   if (v.phase === 'over') {
     const o = document.createElement('div'); o.className = 'sim-over';
-    o.innerHTML = `<h2>${v.winner === v.you ? '¡Has ganado!' : 'Has perdido'}</h2><p>${me.sets} - ${op.sets} en sets</p><div class="pl-btns"><button class="btn" type="button" id="simAgain">${me.again ? 'Esperando al rival…' : 'Revancha'}</button><button class="btn ghost" type="button" id="simLeave2">Salir</button><button class="btn ghost" type="button" id="simClose2">Cerrar sala</button></div>`;
+    o.innerHTML = `<h2>${v.winner === v.you ? '¡Has ganado!' : 'Has perdido'}</h2><p>${me.sets} - ${op.sets} en sets</p>${simRecLine()}<div class="pl-btns"><button class="btn" type="button" id="simAgain">${me.again ? 'Esperando al rival…' : 'Revancha'}</button><button class="btn ghost" type="button" id="simLeave2">Salir</button><button class="btn ghost" type="button" id="simClose2">Cerrar sala</button></div>`;
     body.appendChild(o);
     o.querySelector('#simAgain').onclick = () => simSend({ type: 'again' });
     o.querySelector('#simLeave2').onclick = simClose;
@@ -4198,7 +4226,7 @@ function simLobby(v, me, op) {
     <button class="btn ghost mn-danger" type="button" id="simCloseRoom">Cerrar sala</button>
     <p class="hint" style="text-align:left">Cuando los dos tengáis mazo, se barajan, se reparten 6 cartas y se ponen 2 de set. Las reglas básicas las lleva el tablero; las habilidades y eventos se aplican a mano (± puntos, mover cartas).</p>`;
   d.querySelector('#simCloseRoom').onclick = () => simCloseRoom(SIM.code);
-  d.querySelector('#simReady').onclick = () => { const cards = simDeckPayload(); if (cards.length < 10) { alert('Ese mazo tiene muy pocas cartas.'); return; } simSend({ type: 'deck', cards, name: decks[cur].name || 'Mazo' }); };
+  d.querySelector('#simReady').onclick = () => { const cards = simDeckPayload(); if (cards.length < 10) { alert('Ese mazo tiene muy pocas cartas.'); return; } const sc = {}; deckRows().rowsC.forEach(r => (r.c.schools || []).forEach(x => sc[x] = (sc[x] || 0) + r.n)); SIM.deckId = decks[cur].id; simSend({ type: 'deck', cards, name: decks[cur].name || 'Mazo', school: mainSchool(sc) }); };
   d.querySelector('#simCopy').onclick = async () => { try { await navigator.clipboard.writeText(SIM.code); simToast('Código copiado.'); } catch (e) { prompt('Código de la sala:', SIM.code); } };
   d.querySelector('#simShare').onclick = async () => { const url = HOME_URL + '#sala=' + SIM.code, text = `¿Una partida de Vobaca? Entra en Fly High VoBaCa → Jugar → Unirse, con el código ${SIM.code}, o abre: ${url}`; if (navigator.share) { try { await navigator.share({ title: 'Partida de Vobaca', text }); return; } catch (e) { if (e.name === 'AbortError') return; } } try { await navigator.clipboard.writeText(text); simToast('Invitación copiada.'); } catch (e) { prompt('Invitación:', text); } };
   return d;

@@ -54,6 +54,7 @@ function setup(G) {
 }
 function startMatch(G) {
   G.phase = 'play'; G.setNo = 1;
+  if (G.server !== 0 && G.server !== 1) { G.server = rnd(2); log(G, G.server, 'coin'); }   // salas empezadas con la versión anterior
   startSet(G, G.server);
 }
 function startSet(G, srv) {

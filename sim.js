@@ -48,12 +48,12 @@ function setup(G) {
     P.deck = shuffle(P.list.map(c => cleanCard(G, c)));
     for (let i = 0; i < HAND0; i++) if (P.deck.length) P.hand.push(P.deck.shift());
   });
-  G.phase = 'mull'; G.turn = -1; G.server = -1; G.setNo = 0; G.step = ''; G.ball = null; G.placed = []; G.winner = -1; G.again = [false, false];
-  log(G, -1, 'setup');
+  G.phase = 'mull'; G.turn = -1; G.setNo = 0; G.step = ''; G.ball = null; G.placed = []; G.winner = -1; G.again = [false, false];
+  G.server = rnd(2); G.coinT = Date.now();   // el sorteo del saque se hace antes del cambio de mano, para que los dos lo sepan
+  log(G, -1, 'setup'); log(G, G.server, 'coin');
 }
 function startMatch(G) {
-  G.phase = 'play'; G.server = rnd(2); G.setNo = 1;
-  log(G, G.server, 'coin');
+  G.phase = 'play'; G.setNo = 1;
   startSet(G, G.server);
 }
 function startSet(G, srv) {
@@ -267,6 +267,6 @@ export function view(G, s) {
     pts: { serve: zonePts(P, 'serve'), block: zonePts(P, 'block'), receive: zonePts(P, 'receive'), toss: zonePts(P, 'toss'), attack: zonePts(P, 'attack'), spike: spikePts(P) } });
   const me = s === 0 || s === 1 ? s : -1;
   const players = G.p.map((P, i) => i === me ? { ...pub(P, i), hand: P.hand, peek: P.deck.slice(0, P.peek) } : pub(P, i));
-  return { v: G.v, phase: G.phase, step: G.step, turn: G.turn, server: G.server, setNo: G.setNo, ball: G.ball, winner: G.winner, you: me, placed: me === G.turn ? G.placed : [], players, log: G.log.slice(-80) };
+  return { v: G.v, phase: G.phase, step: G.step, turn: G.turn, server: G.server, coinT: G.coinT || 0, setNo: G.setNo, ball: G.ball, winner: G.winner, you: me, placed: me === G.turn ? G.placed : [], players, log: G.log.slice(-80) };
 }
 export { SimError };

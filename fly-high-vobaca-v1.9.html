@@ -696,6 +696,7 @@ body.sim-on{overflow:hidden}
 @keyframes simPulse{to{filter:brightness(1.15)}}
 .sz-pts{position:absolute;top:-6px;right:-6px;min-width:24px;height:24px;border-radius:12px;background:var(--accent);color:#fff;font:800 14px/24px var(--display);text-align:center;padding:0 5px;box-shadow:0 1px 4px rgba(0,0,0,.5)}
 .sz-pts.mod{background:#8e44ad}
+.sim-move{margin-top:8px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:inherit;font:inherit}
 .sz-guts{position:absolute;bottom:14px;left:-4px;min-width:18px;height:18px;border-radius:9px;background:#1b2330;color:#ffd27a;font:700 11px/18px var(--body);text-align:center;padding:0 4px}
 .sz-lb{font:700 9px/1 var(--body);color:#fff;text-transform:uppercase;letter-spacing:.03em;text-shadow:0 1px 2px rgba(0,0,0,.7);white-space:nowrap}
 .sp{position:relative;width:calc(var(--cw) * .7);height:calc(var(--ch) * .7);border-radius:5px;border:1px solid rgba(255,255,255,.55);background:#2b3140;color:#fff;display:grid;place-items:center;align-content:center;padding:0;overflow:hidden;cursor:pointer}
@@ -4074,6 +4075,9 @@ $('slImg').onclick = () => { const L = SL.leagues.find(l => l.id === SL.cur), st
 // El servidor (una sala por partida) aplica las reglas básicas y reparte a cada jugador lo que puede ver.
 const SIM = { ws: null, code: '', v: null, sel: null, mullSel: new Set(), retry: 0, closing: false, logOpen: false, err: '' };
 const ZN = { serve: 'Saque', block: 'Bloqueo', receive: 'Recepción', toss: 'Colocación', attack: 'Ataque' };
+const SIM_ST = { serve: 0, block: 1, receive: 2, toss: 3, attack: 4 };
+// «-» en la estadística de una posición: ese personaje no puede jugar ahí
+const simNoStat = (c, k) => !!(c && Array.isArray(c.st) && c.st.some(x => x != null) && c.st[SIM_ST[k]] == null);
 const ZN_EN = { serve: 'Serve', block: 'Block', receive: 'Receive', toss: 'Set', attack: 'Attack' };
 const zName = k => (uiEn() ? ZN_EN : ZN)[k] || k || '';
 const simCardName = c => c ? (c.en || c.n || '?') : '?';
@@ -4186,15 +4190,15 @@ function simLogText(e, v) {
   const who = e.s >= 0 ? (e.s === v.you ? 'Tú' : (v.players[e.s].nick || 'Rival')) : '', a = e.a || {};
   const C = { setup: 'Mazos barajados.', coin: `Sorteo: ${who === 'Tú' ? 'ganas tú y eliges' : 'gana ' + who + ' y elige'} si sacar o recibir.`, pick: `${who} elige ${a.m === 'serve' ? 'sacar' : 'recibir'}.`, deal: 'Se reparten 6 cartas a cada uno.', set: `Empieza el punto ${a.n}.`, join: `${who} ha entrado en la sala.`, ready: `${who} ya tiene mazo${a.name ? ' («' + a.name + '»)' : ''}.`, mull: a.n ? `${who} cambia ${a.n} ${a.n === 1 ? 'carta' : 'cartas'}.` : `${who} se queda con su mano.`,
     choose: `${who} ${a.m === 'block' ? 'bloquea' : 'recibe'}.`, draw: a.n ? `${who} roba ${a.n === 1 ? 'una carta' : a.n + ' cartas'}.` : `${who} no puede robar (mazo vacío).`, place: `${who}: ${a.c} a ${zName(a.z).toLowerCase()}${a.side ? ' (lateral)' : ''}.`, unplace: `${who} devuelve ${a.c} a la mano.`,
-    serve: `${who} saca con ${a.p}.`, block: a.ok ? `${who} bloquea: ${a.p} contra ${a.vs}. El balón vuelve con 0.` : `${who} no llega con el bloqueo (${a.p} contra ${a.vs}).`, receive: a.ok ? `${who} recibe: ${a.p} contra ${a.vs}.` : `${who} no llega en la recepción (${a.p} contra ${a.vs}).`,
+    serve: `${who} saca con ${a.p}.`, block: a.ok ? `${who} bloquea: ${a.p} contra ${a.vs}. El balón vuelve con 0.` : `${who} no para el balón con el bloqueo (${a.p} contra ${a.vs}): pasa a recibir.`, receive: a.ok ? `${who} recibe: ${a.p} contra ${a.vs}.` : `${who} no llega en la recepción (${a.p} contra ${a.vs}).`,
     toss: `${who} coloca (${a.p}).`, spike: `${who} remata con ${a.p}.`, lost: `${who} declara «lost».`, win: `¡${who === 'Tú' ? 'Has ganado' : who + ' gana'} la partida!`, event: `${who} pone ${a.c} en la zona de eventos.`, mod: `${who}: ${zName(a.z).toLowerCase()} ${a.d > 0 ? '+' : ''}${a.d}.`, ballmod: `${who}: balón ${a.d > 0 ? '+' : ''}${a.d} (ahora ${a.p}).`,
-    mdraw: `${who} roba ${a.n} por un efecto.`, shuffle: `${who} baraja su mazo.`, peek: `${who} mira ${a.n} ${a.n === 1 ? 'carta' : 'cartas'} de arriba de su mazo.`, guts: `${who} paga ${a.n} ${a.n === 1 ? 'agalla' : 'agallas'} de ${zName(a.z).toLowerCase()}.`,
+    mdraw: `${who} roba ${a.n} por un efecto.`, shuffle: `${who} baraja su mazo.`, peek: `${who} mira ${a.n} ${a.n === 1 ? 'carta' : 'cartas'} de arriba de su mazo.`, guts: `${who} paga ${a.n} Guts de ${zName(a.z).toLowerCase()}.`, touch: `${who} usa Toque (${a.n}): el ataque baja a ${a.p} y pasa a recibir.`,
     move: `${who} mueve ${a.c || 'una carta'} (${simPlace(a.from)} → ${simPlace(a.to)}).`, concede: `${who} abandona la partida.`, setcard: `${who} pierde el punto y coge una carta de set a la mano (${a.left === 0 ? 'ya no le quedan' : 'le queda' + (a.left === 1 ? ' 1' : 'n ' + a.left)}).`, refill: `${who} roba ${a.n} hasta tener 6.`, undo: `${who} deshace su última acción (${UNDO_TXT[a.what] || a.what}).`, chat: `${who}: ${a.m}`, again: `${who} quiere la revancha.` };
   let out = C[e.k] || e.k;
-  if (who === 'Tú') [[' roba', ' robas'], [' declara', ' declaras'], [' no llega', ' no llegas'], [' recibe', ' recibes'], [' bloquea', ' bloqueas'], [' saca', ' sacas'], [' remata', ' rematas'], [' coloca', ' colocas'], [' juega', ' juegas'], [' devuelve', ' devuelves'], [' mueve', ' mueves'], [' baraja', ' barajas'], [' mira', ' miras'], [' paga', ' pagas'], [' cambia', ' cambias'], [' se queda', ' te quedas'], [' ya tiene', ' ya tienes'], [' ha entrado', ' has entrado'], [' quiere', ' quieres'], [' abandona', ' abandonas'], [' no puede', ' no puedes'], [' deshace su', ' deshaces tu'], [' pone ', ' pones '], [' pierde el punto y coge', ' pierdes el punto y coges'], [' elige', ' eliges'], [' le queda', ' te queda']].forEach(([x, y]) => { if (out.startsWith('Tú' + x)) out = 'Tú' + y + out.slice(2 + x.length); });
+  if (who === 'Tú') [[' roba', ' robas'], [' declara', ' declaras'], [' no llega', ' no llegas'], [' no para', ' no paras'], [' usa', ' usas'], [' recibe', ' recibes'], [' bloquea', ' bloqueas'], [' saca', ' sacas'], [' remata', ' rematas'], [' coloca', ' colocas'], [' juega', ' juegas'], [' devuelve', ' devuelves'], [' mueve', ' mueves'], [' baraja', ' barajas'], [' mira', ' miras'], [' paga', ' pagas'], [' cambia', ' cambias'], [' se queda', ' te quedas'], [' ya tiene', ' ya tienes'], [' ha entrado', ' has entrado'], [' quiere', ' quieres'], [' abandona', ' abandonas'], [' no puede', ' no puedes'], [' deshace su', ' deshaces tu'], [' pone ', ' pones '], [' pierde el punto y coge', ' pierdes el punto y coges'], [' elige', ' eliges'], [' le queda', ' te queda']].forEach(([x, y]) => { if (out.startsWith('Tú' + x)) out = 'Tú' + y + out.slice(2 + x.length); });
   return out;
 }
-const simPlace = k => ({ hand: 'mano', drop: 'drop', ev: 'eventos', side: 'bloqueo lateral', set: 'set', deck: 'mazo', deckTop: 'arriba del mazo', deckBottom: 'abajo del mazo' })[k] || (k && k.startsWith('guts:') ? 'agallas de ' + zName(k.slice(5)).toLowerCase() : k && k.startsWith('top:') ? zName(k.slice(4)).toLowerCase() : ZN[k] ? zName(k).toLowerCase() : k || '');
+const simPlace = k => ({ hand: 'mano', drop: 'drop', ev: 'eventos', side: 'bloqueo lateral', set: 'set', deck: 'mazo', deckTop: 'arriba del mazo', deckBottom: 'abajo del mazo' })[k] || (k && k.startsWith('guts:') ? 'Guts de ' + zName(k.slice(5)).toLowerCase() : k && k.startsWith('top:') ? 'encima de ' + zName(k.slice(4)).toLowerCase() : ZN[k] ? zName(k).toLowerCase() : k || '');
 
 // --- Dibujo ---
 const STEP_TXT = { serve: 'Saque', choose: 'Elige: bloquear o recibir', block: 'Bloqueo', receive: 'Recepción', toss: 'Colocación', attack: 'Ataque' };
@@ -4211,7 +4215,7 @@ function simCardEl(c, opts = {}) {
 function simZone(P, k, mine, v) {
   const z = document.createElement('div'); z.className = 'sz sz-' + k; z.dataset.z = k;
   const stack = P.z[k] || [], tp = stack[stack.length - 1], pts = P.pts[k], mod = P.mod[k];
-  const canDrop = mine && v.turn === v.you && v.step === k && SIM.sel && !SIM.sel.ev;
+  const canDrop = mine && v.turn === v.you && v.step === k && SIM.sel && !SIM.sel.ev && !simNoStat(SIM.sel, k);
   if (canDrop) z.classList.add('target');
   if (k === 'block') {
     // [lateral] [central] [lateral]: los laterales solo se pueden poner si hay central y van al drop tras el bloqueo
@@ -4231,10 +4235,11 @@ function simZone(P, k, mine, v) {
     z.appendChild(row);
   } else z.appendChild(tp ? simCardEl(tp) : Object.assign(document.createElement('div'), { className: 'sc empty' }));
   if (tp || (k === 'block' && P.side.length)) { const b = document.createElement('span'); b.className = 'sz-pts' + (mod ? ' mod' : ''); b.textContent = pts; z.appendChild(b); }
-  if (stack.length > 1) { const g = document.createElement('span'); g.className = 'sz-guts'; g.textContent = stack.length - 1; g.title = 'Agallas'; z.appendChild(g); }
+  if (stack.length > 1) { const g = document.createElement('span'); g.className = 'sz-guts'; g.textContent = stack.length - 1; g.title = 'Guts'; z.appendChild(g); }
   const lb = document.createElement('small'); lb.className = 'sz-lb'; lb.textContent = zName(k) + (mod ? ` (${mod > 0 ? '+' : ''}${mod})` : '') + (k === 'block' && P.side.length ? ` · ${P.side.length} ${P.side.length === 1 ? 'lateral' : 'laterales'}` : ''); z.appendChild(lb);
   z.onclick = () => {
     if (canDrop) { simSend({ type: 'place', u: SIM.sel.u }); SIM.sel = null; return; }
+    if (mine && v.turn === v.you && v.step === k && SIM.sel && simNoStat(SIM.sel, k)) { simToast(`Tiene «-» en ${zName(k).toLowerCase()}: no puede ponerse ahí.`); return; }
     openZoneSheet(P, k, mine);
   };
   return z;
@@ -4354,7 +4359,7 @@ function simHandRender(v, me) {
     el.onclick = () => {
       if (SIM.sel && SIM.sel.u === c.u) { openCardSheet(c); return; }
       SIM.sel = c; simRender();
-      if (v.phase === 'play') simToast(c.ev ? 'Evento: toca «eventos» en tu lado para jugarlo, o tócalo otra vez para ver opciones.' : c.ball ? (v.turn === v.you && ZN[v.step] ? `Toca la zona de ${zName(v.step).toLowerCase()} o, por su habilidad, «eventos».` : 'Por su habilidad puede ir a la zona de eventos: toca «eventos».') : (v.turn === v.you && ZN[v.step] ? `Toca la zona de ${zName(v.step).toLowerCase()} para ponerla.` : 'Tócala otra vez para ver la carta y sus opciones.'));
+      if (v.phase === 'play') simToast(c.ev ? 'Evento: toca «eventos» en tu lado para jugarlo, o tócalo otra vez para ver opciones.' : c.ball ? (v.turn === v.you && ZN[v.step] && !simNoStat(c, v.step) ? `Toca la zona de ${zName(v.step).toLowerCase()} o, por su habilidad, «eventos».` : 'Por su habilidad puede ir a la zona de eventos: toca «eventos».') : (v.turn === v.you && ZN[v.step] && simNoStat(c, v.step) ? `Tiene «-» en ${zName(v.step).toLowerCase()}: no puede ponerse ahí.` : v.turn === v.you && ZN[v.step] ? `Toca la zona de ${zName(v.step).toLowerCase()} para ponerla.` : 'Tócala otra vez para ver la carta y sus opciones.'));
     };
     h.appendChild(el);
   });
@@ -4364,7 +4369,7 @@ function simHandRender(v, me) {
   }
 }
 const STAT_IDX = { serve: 0, block: 1, receive: 2, toss: 3, attack: 4 };
-const UNDO_TXT = { pick: 'elegir sacar o recibir', place: 'poner carta', unplace: 'devolver carta', confirm: 'confirmar', choose: 'elegir bloqueo o recepción', event: 'jugar evento', mod: 'cambiar puntos', ballmod: 'cambiar el balón', draw: 'robar', shuffle: 'barajar', guts: 'pagar agallas', move: 'mover carta', lost: 'declarar lost', concede: 'abandonar', mull: 'cambiar la mano' };
+const UNDO_TXT = { pick: 'elegir sacar o recibir', place: 'poner carta', unplace: 'devolver carta', confirm: 'confirmar', choose: 'elegir bloqueo o recepción', event: 'jugar evento', mod: 'cambiar puntos', ballmod: 'cambiar el balón', draw: 'robar', shuffle: 'barajar', guts: 'pagar Guts', touch: 'usar Toque', move: 'mover carta', lost: 'declarar lost', concede: 'abandonar', mull: 'cambiar la mano' };
 function simActsRender(v, me, op) {
   const a = $('simActs'); a.innerHTML = '';
   const btn = (txt, cls, fn, title) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ' + (cls || ''); b.textContent = txt; if (title) b.title = title; b.onclick = fn; a.appendChild(b); return b; };
@@ -4382,12 +4387,13 @@ function simActsRender(v, me, op) {
       if (v.step === 'attack') label = placed ? `Rematar con ${pts.spike}` : 'Pon a tu atacante';
       const b = btn(label, ok ? '' : 'warn', () => {
         if (!placed) { simToast('Elige una carta de tu mano y toca la zona iluminada.'); return; }
-        if (!ok && !confirm(`No llegas (${v.step === 'block' ? pts.block : pts.receive} contra ${need}): se declarará «lost» y perderás el set. ¿Seguir?`)) return;
+        if (!ok && v.step === 'receive' && !confirm(`No llegas (${pts.receive} contra ${need}): perderás el punto. ¿Seguir?`)) return;
         simSend({ type: 'confirm' });
       });
       b.classList.add('sim-main'); if (!placed) b.classList.add('ghost');
+      if (v.step === 'block') btn('Toque', 'ghost', () => { const n = prompt(`Toque (N): ¿cuánto baja el ataque rival? (ahora ${need})`, '2'); if (n && +n > 0) simSend({ type: 'touch', n: +n }); }, 'Toque (N): el ataque rival −N y pasas a robar y recibir');
     }
-    btn('Lost', 'ghost sim-lost', () => { if (confirm('¿Declarar «lost»? Perderás este set.')) simSend({ type: 'lost' }); }, 'Declarar lost');
+    btn('Lost', 'ghost sim-lost', () => { if (confirm('¿Declarar «lost»? Perderás este punto.')) simSend({ type: 'lost' }); }, 'Declarar lost');
   } else {
     const t = document.createElement('span'); t.className = 'sim-wait2'; t.textContent = `Juega ${op.nick || 'el rival'}: ${(STEP_TXT[v.step] || '').toLowerCase()}…`; a.appendChild(t);
   }
@@ -4448,13 +4454,13 @@ function openZoneSheet(P, k, mine) {
   openSimSheet(`<h3>${zName(k)} ${mine ? '' : '· ' + esc(P.nick || 'rival')}</h3>
     <p class="sim-pts">Puntos: <b>${P.pts[k]}</b>${P.mod[k] ? ` (con ${P.mod[k] > 0 ? '+' : ''}${P.mod[k]})` : ''}${k === 'block' && P.side.length ? ` · ${P.side.length} ${P.side.length === 1 ? 'lateral' : 'laterales'}` : ''}</p>
     ${tp ? bigPH(tp) : '<p class="hint">Sin personaje.</p>'}
-    ${mine && (P.z[k].length || k === 'block') ? `<div class="pl-btns"><button class="btn ghost" data-mod="-1">−1</button><button class="btn ghost" data-mod="1">+1</button>${P.z[k].length > 1 ? '<button class="btn ghost" data-guts>Pagar agallas</button>' : ''}</div>` : ''}
-    <p class="sim-sub">${stack.length ? 'Cartas aquí (la de arriba es el personaje; las demás, agallas):' : ''}</p>
+    ${mine && (P.z[k].length || k === 'block') ? `<div class="pl-btns"><button class="btn ghost" data-mod="-1">−1</button><button class="btn ghost" data-mod="1">+1</button>${P.z[k].length > 1 ? '<button class="btn ghost" data-guts>Pagar Guts</button>' : ''}</div>` : ''}
+    <p class="sim-sub">${stack.length ? 'Cartas aquí (la de arriba es el personaje; las demás, Guts):' : ''}</p>
     <div class="sim-list"></div>`, s => {
     const list = s.querySelector('.sim-list');
     [...stack].reverse().forEach(c => list.appendChild(simListRow(c, mine, { placed: placed.has(c.u), isTop: c === tp })));
     s.querySelectorAll('[data-mod]').forEach(b => b.onclick = () => simSend({ type: 'mod', zone: k, d: +b.dataset.mod }));
-    const g = s.querySelector('[data-guts]'); if (g) g.onclick = () => { const n = prompt(`¿Cuántas agallas pagas? (tiene ${P.z[k].length - 1})`, '1'); if (n) simSend({ type: 'guts', zone: k, n: +n }); closeSimSheet(); };
+    const g = s.querySelector('[data-guts]'); if (g) g.onclick = () => { const n = prompt(`¿Cuántos Guts pagas? (tiene ${P.z[k].length - 1})`, '1'); if (n) simSend({ type: 'guts', zone: k, n: +n }); closeSimSheet(); };
   });
 }
 function simListRow(c, mine, o = {}) {
@@ -4463,7 +4469,7 @@ function simListRow(c, mine, o = {}) {
   r.querySelector('img').onclick = () => openCardSheet(c, null, true);
   if (mine) {
     const sel = document.createElement('select'); sel.setAttribute('aria-label', 'Mover');
-    sel.innerHTML = `<option value="">Mover…</option>${o.placed ? '<option value="unplace">↩ Devolver a la mano</option>' : ''}<option value="hand">A la mano</option><option value="drop">Al drop</option><option value="deckTop">Arriba del mazo</option><option value="deckBottom">Abajo del mazo</option><option value="ev">A eventos</option>${ZONES_SIM.map(k => `<option value="guts:${k}">Agalla de ${zName(k).toLowerCase()}</option>`).join('')}`;
+    sel.innerHTML = `<option value="">Mover…</option>${o.placed ? '<option value="unplace">↩ Devolver a la mano</option>' : ''}<option value="hand">A la mano</option><option value="drop">Al drop</option><option value="deckTop">Arriba del mazo</option><option value="deckBottom">Abajo del mazo</option><option value="ev">A eventos</option>${ZONES_SIM.map(k => `<option value="top:${k}">Encima de ${zName(k).toLowerCase()}</option>`).join('')}${ZONES_SIM.map(k => `<option value="guts:${k}">Guts de ${zName(k).toLowerCase()}</option>`).join('')}`;
     sel.onchange = () => { const t = sel.value; if (!t) return; if (t === 'unplace') simSend({ type: 'unplace', u: c.u }); else simSend({ type: 'move', u: c.u, to: t }); closeSimSheet(); };
     r.appendChild(sel);
   }
@@ -4479,8 +4485,9 @@ function openPileSheet(label, cards, mine) {
 function openCardSheet(c, from, viewOnly) {
   const v = SIM.v, inHand = !viewOnly && v && v.players[v.you].hand.some(x => x.u === c.u);
   openSimSheet(`<h3>${esc(simCardName(c))}</h3>${bigPH(c)}<p class="sim-sub">${esc(c.no || '')}</p>
-    ${(inHand || from === 'deck') ? `<div class="pl-btns">${(c.ev || c.ball) && inHand ? `<button class="btn" data-a="ev">${c.ball ? 'A la zona de eventos (habilidad)' : 'Jugar evento'}</button>` : ''}<button class="btn ghost" data-a="hand"${inHand ? ' hidden' : ''}>A la mano</button><button class="btn ghost" data-a="drop">Al drop</button><button class="btn ghost" data-a="deckBottom">Abajo del mazo</button></div>` : ''}
+    ${(inHand || from === 'deck') ? `<div class="pl-btns">${(c.ev || c.ball) && inHand ? `<button class="btn" data-a="ev">${c.ball ? 'A la zona de eventos (habilidad)' : 'Jugar evento'}</button>` : ''}<button class="btn ghost" data-a="hand"${inHand ? ' hidden' : ''}>A la mano</button><button class="btn ghost" data-a="drop">Al drop</button><button class="btn ghost" data-a="deckBottom">Abajo del mazo</button></div>${v && v.phase === 'play' ? `<select class="sim-move" data-zone style="width:100%"><option value="">Poner en una zona (por un efecto)…</option>${ZONES_SIM.map(k => `<option value="top:${k}">Encima de ${zName(k).toLowerCase()}</option>`).join('')}${ZONES_SIM.map(k => `<option value="guts:${k}">Guts de ${zName(k).toLowerCase()}</option>`).join('')}</select>` : ''}` : ''}
     ${BY_ID[c.id] ? '<button class="btn ghost" data-a="info" style="width:100%">Ver ficha completa</button>' : ''}`, s => {
+    const zs = s.querySelector('[data-zone]'); if (zs) zs.onchange = () => { if (!zs.value) return; simSend({ type: 'move', u: c.u, to: zs.value }); SIM.sel = null; closeSimSheet(); };
     s.querySelectorAll('[data-a]').forEach(b => b.onclick = () => {
       const k = b.dataset.a;
       if (k === 'info') { closeSimSheet(); openInfo(c.id); return; }
@@ -4520,7 +4527,7 @@ function bindTools(s) {
 const SIM_HELP = `<p><b>Turnos.</b> Cada punto empieza con un saque (saca quien ganó el punto anterior). Luego cada uno elige <b>bloquear</b> (solo contra un remate) o <b>recibir</b>: robas 1, pones receptor, colocador y atacante, y el remate vale colocación + ataque.</p>
 <p><b>Jugar una carta.</b> Toca una carta de tu mano y después la zona iluminada. En el bloqueo, el primero es el central; con él puesto, se iluminan los dos huecos laterales (van al drop después del bloqueo). Si te equivocas, pulsa <b>↶</b> para deshacer tu última acción (mientras el rival no haya jugado).</p>
 <p><b>Defensa.</b> Si tu bloqueo o tu recepción llegan a la potencia del balón, sigues; si no, se declara «lost» y pierdes el set. Un bloqueo que llega devuelve el balón con 0 de ataque (y solo se puede recibir).</p>
-<p><b>Habilidades y eventos.</b> Se aplican a mano: ±1 en cada zona (tócala), ± al balón, robar, mirar el mazo, pagar agallas o mover cartas.</p>
+<p><b>Habilidades y eventos.</b> Se aplican a mano: ±1 en cada zona (tócala), ± al balón, robar, mirar el mazo, pagar Guts, poner una carta encima de otra (Kageyama, Oikawa…) o mover cartas. En el bloqueo, «Toque» baja el ataque rival y pasas a recibir.</p>
 <p><b>Inicio.</b> Un sorteo decide quién elige sacar o recibir; después se reparten 6 cartas, cada uno cambia las que quiera una vez y se ponen 2 cartas de set.</p>
 <p><b>Lost.</b> Al perder un punto, los dos robáis hasta tener 6 (si tienes más, nada) y el que lo perdió coge una de sus cartas de set; si ya no le quedan, pierde la partida.</p>`;
 function toggleSimLog() { if (SIM.logOpen) { closeSimSheet(); return; } openSimSheet(`<h3>Registro y chat</h3><div class="sim-loglist" id="simLogList"></div><div class="dcrow"><input id="simChat" maxlength="200" placeholder="Escribe un mensaje…" autocomplete="off"><button class="btn" id="simChatGo" type="button">Enviar</button></div>`, s => { SIM.logOpen = true; renderSimLog(); const go = () => { const m = $('simChat').value.trim(); if (m) { simSend({ type: 'chat', m }); $('simChat').value = ''; } }; $('simChatGo').onclick = go; $('simChat').onkeydown = e => { if (e.key === 'Enter') go(); }; }); }

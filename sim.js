@@ -37,7 +37,7 @@ const spikePts = P => zonePts(P, 'toss') + zonePts(P, 'attack');
 
 function cleanCard(G, c) {
   const st = Array.isArray(c.st) ? c.st.slice(0, 5).map(v => (typeof v === 'number' && isFinite(v)) ? Math.max(-99, Math.min(99, Math.round(v))) : null) : [null, null, null, null, null];
-  return { u: 'c' + (++G.uid), id: String(c.id || '').slice(0, 40), no: String(c.no || '').slice(0, 30), n: String(c.n || '').slice(0, 60), en: String(c.en || '').slice(0, 60), st, ev: !!c.ev, img: /^https:\/\//.test(c.img || '') ? String(c.img).slice(0, 300) : '', tr: typeof c.tr === 'string' ? c.tr.slice(0, 1500) : '' };
+  return { u: 'c' + (++G.uid), id: String(c.id || '').slice(0, 40), no: String(c.no || '').slice(0, 30), n: String(c.n || '').slice(0, 60), en: String(c.en || '').slice(0, 60), st, ev: !!c.ev, ball: !!c.ball, img: /^https:\/\//.test(c.img || '') ? String(c.img).slice(0, 300) : '', tr: typeof c.tr === 'string' ? c.tr.slice(0, 1500) : '' };
 }
 function draw(G, s, n) { const P = G.p[s]; let k = 0; while (k < n && P.deck.length) { P.hand.push(P.deck.shift()); k++; } P.peek = 0; return k; }
 
@@ -99,7 +99,7 @@ export function act(G, s, a) {
       if (G.phase !== 'lobby' && G.phase !== 'over') no('La partida ya ha empezado.');
       const list = Array.isArray(a.cards) ? a.cards : [];
       if (list.length < 10 || list.length > MAX_DECK) no('El mazo debe tener entre 10 y 60 cartas.');
-      P.list = list.slice(0, MAX_DECK).map(c => ({ id: c.id, no: c.no, n: c.n, en: c.en, st: c.st, ev: c.ev, img: c.img, tr: c.tr }));
+      P.list = list.slice(0, MAX_DECK).map(c => ({ id: c.id, no: c.no, n: c.n, en: c.en, st: c.st, ev: c.ev, ball: c.ball, img: c.img, tr: c.tr }));
       P.deckName = String(a.name || '').slice(0, 60); P.school = String(a.school || '').slice(0, 40);
       if (G.phase === 'over') G.phase = 'lobby';
       log(G, s, 'ready', { name: P.deckName, n: list.length });
@@ -136,6 +136,7 @@ export function act(G, s, a) {
       if (!ZONES.includes(zone)) no('Ahora no se coloca ningún personaje.');
       const i = findHand(a.u), c = P.hand[i];
       if (c.ev) no('Los eventos van a la zona de eventos.');
+      if (c.ball) no('Los recogepelotas (ボール拾い) van a la zona de eventos.');
       if (zone === 'block') {
         if (G.placed.length >= 3) no('Como mucho 3 bloqueadores.');
         const inBlock = G.placed.map(u => [top(P.z.block), ...P.side].find(x => x && x.u === u)).filter(Boolean);
@@ -187,7 +188,7 @@ export function act(G, s, a) {
     case 'event': {
       if (G.phase !== 'play') no('La partida no está en juego.');
       const i = findHand(a.u), c = P.hand[i];
-      if (!c.ev) no('Solo se juegan aquí las cartas de evento.');
+      if (!c.ev && !c.ball) no('Aquí solo van los eventos y los recogepelotas (ボール拾い).');
       P.hand.splice(i, 1); P.ev.push(c); log(G, s, 'event', { c: nameOf(c) });
       break;
     }

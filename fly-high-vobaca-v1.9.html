@@ -4054,7 +4054,7 @@ const zName = k => (uiEn() ? ZN_EN : ZN)[k] || k || '';
 const simCardName = c => c ? (c.en || c.n || '?') : '?';
 function simDeckPayload() {
   const out = [];
-  items().forEach(id => { const c = BY_ID[id]; if (!c) return; const tr = TR[trKeyFor(c.no)]; out.push({ id, no: c.no, n: c.jp || c.en || '', en: c.en || '', st: c.st || [null, null, null, null, null], ev: !!c.ev, img: imgOf(id), tr: tr && tr.t ? String(tr.t).slice(0, 1500) : '' }); });
+  items().forEach(id => { const c = BY_ID[id]; if (!c) return; const tr = TR[trKeyFor(c.no)]; out.push({ id, no: c.no, n: c.jp || c.en || '', en: c.en || '', st: c.st || [null, null, null, null, null], ev: !!c.ev, ball: (c.pos || []).includes('ボール拾い'), img: imgOf(id), tr: tr && tr.t ? String(tr.t).slice(0, 1500) : '' }); });
   return out;
 }
 // --- Lobby en «Jugar» ---
@@ -4162,11 +4162,11 @@ function simLogText(e, v) {
   const C = { setup: 'Mazos barajados: 6 cartas en la mano. Tras decidir la mano, 2 cartas de set.', coin: `Sorteo del saque: ${who === 'Tú' ? 'sacas tú' : 'saca ' + who}.`, set: `Empieza el set ${a.n}.`, join: `${who} ha entrado en la sala.`, ready: `${who} ya tiene mazo${a.name ? ' («' + a.name + '»)' : ''}.`, mull: a.n ? `${who} cambia ${a.n} ${a.n === 1 ? 'carta' : 'cartas'}.` : `${who} se queda con su mano.`,
     choose: `${who} ${a.m === 'block' ? 'bloquea' : 'recibe'}.`, draw: a.n ? `${who} roba ${a.n === 1 ? 'una carta' : a.n + ' cartas'}.` : `${who} no puede robar (mazo vacío).`, place: `${who}: ${a.c} a ${zName(a.z).toLowerCase()}${a.side ? ' (lateral)' : ''}.`, unplace: `${who} devuelve ${a.c} a la mano.`,
     serve: `${who} saca con ${a.p}.`, block: a.ok ? `${who} bloquea: ${a.p} contra ${a.vs}. El balón vuelve con 0.` : `${who} no llega con el bloqueo (${a.p} contra ${a.vs}).`, receive: a.ok ? `${who} recibe: ${a.p} contra ${a.vs}.` : `${who} no llega en la recepción (${a.p} contra ${a.vs}).`,
-    toss: `${who} coloca (${a.p}).`, spike: `${who} remata con ${a.p}.`, lost: `${who} declara «lost».`, win: `¡${who === 'Tú' ? 'Has ganado' : who + ' gana'} la partida!`, event: `${who} juega el evento ${a.c}.`, mod: `${who}: ${zName(a.z).toLowerCase()} ${a.d > 0 ? '+' : ''}${a.d}.`, ballmod: `${who}: balón ${a.d > 0 ? '+' : ''}${a.d} (ahora ${a.p}).`,
+    toss: `${who} coloca (${a.p}).`, spike: `${who} remata con ${a.p}.`, lost: `${who} declara «lost».`, win: `¡${who === 'Tú' ? 'Has ganado' : who + ' gana'} la partida!`, event: `${who} pone ${a.c} en la zona de eventos.`, mod: `${who}: ${zName(a.z).toLowerCase()} ${a.d > 0 ? '+' : ''}${a.d}.`, ballmod: `${who}: balón ${a.d > 0 ? '+' : ''}${a.d} (ahora ${a.p}).`,
     mdraw: `${who} roba ${a.n} por un efecto.`, shuffle: `${who} baraja su mazo.`, peek: `${who} mira ${a.n} ${a.n === 1 ? 'carta' : 'cartas'} de arriba de su mazo.`, guts: `${who} paga ${a.n} ${a.n === 1 ? 'agalla' : 'agallas'} de ${zName(a.z).toLowerCase()}.`,
     move: `${who} mueve ${a.c || 'una carta'} (${simPlace(a.from)} → ${simPlace(a.to)}).`, concede: `${who} abandona la partida.`, setcard: `${who} pierde el set y coge una carta de set a la mano (${a.left === 0 ? 'ya no le quedan' : 'le queda' + (a.left === 1 ? ' 1' : 'n ' + a.left)}).`, refill: `Descanso: ${who} roba ${a.n} hasta tener 6.`, undo: `${who} deshace su última acción (${UNDO_TXT[a.what] || a.what}).`, chat: `${who}: ${a.m}`, again: `${who} quiere la revancha.` };
   let out = C[e.k] || e.k;
-  if (who === 'Tú') [[' roba', ' robas'], [' declara', ' declaras'], [' no llega', ' no llegas'], [' recibe', ' recibes'], [' bloquea', ' bloqueas'], [' saca', ' sacas'], [' remata', ' rematas'], [' coloca', ' colocas'], [' juega', ' juegas'], [' devuelve', ' devuelves'], [' mueve', ' mueves'], [' baraja', ' barajas'], [' mira', ' miras'], [' paga', ' pagas'], [' cambia', ' cambias'], [' se queda', ' te quedas'], [' ya tiene', ' ya tienes'], [' ha entrado', ' has entrado'], [' quiere', ' quieres'], [' abandona', ' abandonas'], [' no puede', ' no puedes'], [' deshace su', ' deshaces tu'], [' pierde el set y coge', ' pierdes el set y coges'], [' le queda', ' te queda']].forEach(([x, y]) => { if (out.startsWith('Tú' + x)) out = 'Tú' + y + out.slice(2 + x.length); });
+  if (who === 'Tú') [[' roba', ' robas'], [' declara', ' declaras'], [' no llega', ' no llegas'], [' recibe', ' recibes'], [' bloquea', ' bloqueas'], [' saca', ' sacas'], [' remata', ' rematas'], [' coloca', ' colocas'], [' juega', ' juegas'], [' devuelve', ' devuelves'], [' mueve', ' mueves'], [' baraja', ' barajas'], [' mira', ' miras'], [' paga', ' pagas'], [' cambia', ' cambias'], [' se queda', ' te quedas'], [' ya tiene', ' ya tienes'], [' ha entrado', ' has entrado'], [' quiere', ' quieres'], [' abandona', ' abandonas'], [' no puede', ' no puedes'], [' deshace su', ' deshaces tu'], [' pone ', ' pones '], [' pierde el set y coge', ' pierdes el set y coges'], [' le queda', ' te queda']].forEach(([x, y]) => { if (out.startsWith('Tú' + x)) out = 'Tú' + y + out.slice(2 + x.length); });
   return out;
 }
 const simPlace = k => ({ hand: 'mano', drop: 'drop', ev: 'eventos', side: 'bloqueo lateral', set: 'set', deck: 'mazo', deckTop: 'arriba del mazo', deckBottom: 'abajo del mazo' })[k] || (k && k.startsWith('guts:') ? 'agallas de ' + zName(k.slice(5)).toLowerCase() : k && k.startsWith('top:') ? zName(k.slice(4)).toLowerCase() : ZN[k] ? zName(k).toLowerCase() : k || '');
@@ -4186,7 +4186,7 @@ function simCardEl(c, opts = {}) {
 function simZone(P, k, mine, v) {
   const z = document.createElement('div'); z.className = 'sz sz-' + k; z.dataset.z = k;
   const stack = P.z[k] || [], tp = stack[stack.length - 1], pts = P.pts[k], mod = P.mod[k];
-  const canDrop = mine && v.turn === v.you && v.step === k && SIM.sel && !SIM.sel.ev;
+  const canDrop = mine && v.turn === v.you && v.step === k && SIM.sel && !SIM.sel.ev && !SIM.sel.ball;
   if (canDrop) z.classList.add('target');
   if (k === 'block') {
     // [lateral] [central] [lateral]: los laterales solo se pueden poner si hay central y van al drop tras el bloqueo
@@ -4218,7 +4218,7 @@ function simPile(label, n, cards, mine, kind) {
   const p = document.createElement('button'); p.type = 'button'; p.className = 'sp sp-' + kind;
   const last = cards && cards.length ? cards[cards.length - 1] : null;
   p.innerHTML = `${last ? `<img alt="" src="${esc(last.img || '')}">` : ''}<b>${n}</b><small>${label}</small>`;
-  const canEv = kind === 'ev' && mine && SIM.sel && SIM.sel.ev && SIM.v.phase === 'play';
+  const canEv = kind === 'ev' && mine && SIM.sel && (SIM.sel.ev || SIM.sel.ball) && SIM.v.phase === 'play';
   if (canEv) p.classList.add('target');
   p.onclick = () => {
     if (canEv) { simSend({ type: 'event', u: SIM.sel.u }); SIM.sel = null; return; }
@@ -4311,13 +4311,13 @@ function simHandRender(v, me) {
   const h = $('simHand'); h.innerHTML = '';
   if (SIM.sel && !me.hand.some(c => c.u === SIM.sel.u)) SIM.sel = null;
   (me.hand || []).forEach(c => {
-    const el = simCardEl(c, { btn: true, cls: (SIM.sel && SIM.sel.u === c.u ? 'up' : '') + (c.ev ? ' ev' : '') });
-    const st = c.st || [], hint = v.turn === v.you && STAT_IDX[v.step] != null && !c.ev ? st[STAT_IDX[v.step]] : null;
+    const el = simCardEl(c, { btn: true, cls: (SIM.sel && SIM.sel.u === c.u ? 'up' : '') + (c.ev || c.ball ? ' ev' : '') });
+    const st = c.st || [], hint = v.turn === v.you && STAT_IDX[v.step] != null && !c.ev && !c.ball ? st[STAT_IDX[v.step]] : null;
     if (hint != null) { const s2 = document.createElement('span'); s2.className = 'sc-hint'; s2.textContent = hint; el.appendChild(s2); }
     el.onclick = () => {
       if (SIM.sel && SIM.sel.u === c.u) { openCardSheet(c); return; }
       SIM.sel = c; simRender();
-      if (v.phase === 'play') simToast(c.ev ? 'Toca «eventos» en tu lado para jugarla, o tócala otra vez para ver opciones.' : (v.turn === v.you && ZN[v.step] ? `Toca la zona de ${zName(v.step).toLowerCase()} para ponerla.` : 'Tócala otra vez para ver la carta y sus opciones.'));
+      if (v.phase === 'play') simToast(c.ev || c.ball ? `${c.ball ? 'Recogepelotas: va' : 'Evento: va'} a la zona de eventos. Toca «eventos» en tu lado, o tócala otra vez para ver opciones.` : (v.turn === v.you && ZN[v.step] ? `Toca la zona de ${zName(v.step).toLowerCase()} para ponerla.` : 'Tócala otra vez para ver la carta y sus opciones.'));
     };
     h.appendChild(el);
   });
@@ -4433,7 +4433,7 @@ function openPileSheet(label, cards, mine) {
 function openCardSheet(c, from, viewOnly) {
   const v = SIM.v, inHand = !viewOnly && v && v.players[v.you].hand.some(x => x.u === c.u);
   openSimSheet(`<h3>${esc(simCardName(c))}</h3>${bigPH(c)}<p class="sim-sub">${esc(c.no || '')}${c.st && !c.ev ? ' · Saque ' + (c.st[0] ?? '–') + ' · Bloqueo ' + (c.st[1] ?? '–') + ' · Recepción ' + (c.st[2] ?? '–') + ' · Colocación ' + (c.st[3] ?? '–') + ' · Ataque ' + (c.st[4] ?? '–') : ''}</p>
-    ${(inHand || from === 'deck') ? `<div class="pl-btns">${c.ev && inHand ? '<button class="btn" data-a="ev">Jugar evento</button>' : ''}<button class="btn ghost" data-a="hand"${inHand ? ' hidden' : ''}>A la mano</button><button class="btn ghost" data-a="drop">Al drop</button><button class="btn ghost" data-a="deckBottom">Abajo del mazo</button></div>` : ''}
+    ${(inHand || from === 'deck') ? `<div class="pl-btns">${(c.ev || c.ball) && inHand ? `<button class="btn" data-a="ev">${c.ball ? 'A la zona de eventos' : 'Jugar evento'}</button>` : ''}<button class="btn ghost" data-a="hand"${inHand ? ' hidden' : ''}>A la mano</button><button class="btn ghost" data-a="drop">Al drop</button><button class="btn ghost" data-a="deckBottom">Abajo del mazo</button></div>` : ''}
     ${BY_ID[c.id] ? '<button class="btn ghost" data-a="info" style="width:100%">Ver ficha completa</button>' : ''}`, s => {
     s.querySelectorAll('[data-a]').forEach(b => b.onclick = () => {
       const k = b.dataset.a;

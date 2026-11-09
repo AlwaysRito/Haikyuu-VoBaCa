@@ -2,10 +2,10 @@
 // Lo usa el servidor (cada sala online) y puede usarlo la propia web. El tablero guía las fases, coloca cada carta en su zona,
 // suma la potencia del balón y la defensa y declara el «lost»; las habilidades y eventos se aplican a mano (±puntos, mover cartas…).
 //
-// Reglas (resumen del reglamento oficial): 40 cartas; mano inicial 6 con un cambio; después, 2 cartas de set boca abajo.
+// Reglas (resumen del reglamento oficial): sorteo (el ganador elige sacar o recibir); 40 cartas; mano inicial 6 con un cambio; después, 2 cartas de set boca abajo.
 // Primer turno de cada set: saque. Después, cada turno es de bloqueo (bloqueo) o de recepción (robo, recepción, colocación, ataque).
 // Contra un saque o un balón devuelto por un bloqueo solo se puede recibir; el balón bloqueado vuelve con 0 de ataque. Defensa ≥ ataque = éxito; si no, «lost».
-// Al perder un set coges una carta de set; si no te quedan, pierdes la partida. En el descanso, los dos roban hasta tener 6.
+// Al perder un punto (lost), los dos roban hasta tener 6 y el que lo perdió coge una carta de set; si no le quedan, pierde la partida.
 
 export const ZONES = ['serve', 'block', 'receive', 'toss', 'attack'];
 export const STAT = { serve: 0, block: 1, receive: 2, toss: 3, attack: 4 };
@@ -46,11 +46,15 @@ function setup(G) {
     const keep = { list: P.list, deckName: P.deckName, school: P.school };
     Object.assign(P, newPlayer(), keep);
     P.deck = shuffle(P.list.map(c => cleanCard(G, c)));
-    for (let i = 0; i < HAND0; i++) if (P.deck.length) P.hand.push(P.deck.shift());
   });
-  G.phase = 'mull'; G.turn = -1; G.setNo = 0; G.step = ''; G.ball = null; G.placed = []; G.winner = -1; G.again = [false, false];
-  G.server = rnd(2); G.coinT = Date.now();   // el sorteo del saque se hace antes del cambio de mano, para que los dos lo sepan
-  log(G, -1, 'setup'); log(G, G.server, 'coin');
+  // 1) Sorteo: quien gana ELIGE sacar o recibir. 2) Se reparten 6. 3) Cambio de mano. 4) 2 cartas de set.
+  G.phase = 'pick'; G.turn = -1; G.setNo = 0; G.step = ''; G.ball = null; G.placed = []; G.winner = -1; G.again = [false, false];
+  G.server = -1; G.chooser = rnd(2); G.coinT = Date.now();
+  log(G, -1, 'setup'); log(G, G.chooser, 'coin');
+}
+function deal(G) {
+  G.p.forEach(P => { for (let i = 0; i < HAND0; i++) if (P.deck.length) P.hand.push(P.deck.shift()); });
+  G.phase = 'mull'; log(G, -1, 'deal');
 }
 function startMatch(G) {
   G.phase = 'play'; G.setNo = 1;
@@ -82,8 +86,9 @@ function lost(G, s, why) {
   G.p[w].sets++;
   G.p.forEach(P => { if (P.side.length) { P.drop.push(...P.side); P.side = []; } });
   if (!L.set.length) { G.phase = 'over'; G.winner = w; G.step = ''; G.ball = null; log(G, w, 'win'); return; }
-  L.hand.push(L.set.pop()); log(G, s, 'setcard', { left: L.set.length });   // el que pierde el set coge una de sus cartas de set
+  // Los dos roban hasta tener 6 (si tienen 6 o más, nada) y después el que perdió el punto coge una de sus cartas de set
   G.p.forEach((P, i) => { const n = Math.max(0, HAND0 - P.hand.length); if (n) { const k = draw(G, i, n); log(G, i, 'refill', { n: k }); } });
+  L.hand.push(L.set.pop()); log(G, s, 'setcard', { left: L.set.length });
   G.setNo++;
   startSet(G, w);
 }
@@ -110,6 +115,14 @@ export function act(G, s, a) {
       if (G.phase !== 'over') no('La partida no ha terminado.');
       G.again[s] = true; log(G, s, 'again');
       if (G.again[0] && G.again[1]) setup(G);
+      break;
+    }
+    case 'pick': {   // el ganador del sorteo elige sacar o recibir
+      if (G.phase !== 'pick') no('Ahora no toca elegir saque.');
+      if (s !== G.chooser) no('Elige tu rival: ganó el sorteo.');
+      if (a.mode !== 'serve' && a.mode !== 'receive') no('Elige sacar o recibir.');
+      G.server = a.mode === 'serve' ? s : 1 - s; log(G, s, 'pick', { m: a.mode });
+      deal(G);
       break;
     }
     case 'mull': {
@@ -247,7 +260,7 @@ export function act(G, s, a) {
       break;
     }
     case 'concede': {
-      if (G.phase !== 'play' && G.phase !== 'mull') no('No hay partida que abandonar.');
+      if (G.phase !== 'play' && G.phase !== 'mull' && G.phase !== 'pick') no('No hay partida que abandonar.');
       G.phase = 'over'; G.winner = 1 - s; G.step = ''; log(G, s, 'concede');
       break;
     }
@@ -269,6 +282,6 @@ export function view(G, s) {
     pts: { serve: zonePts(P, 'serve'), block: zonePts(P, 'block'), receive: zonePts(P, 'receive'), toss: zonePts(P, 'toss'), attack: zonePts(P, 'attack'), spike: spikePts(P) } });
   const me = s === 0 || s === 1 ? s : -1;
   const players = G.p.map((P, i) => i === me ? { ...pub(P, i), hand: P.hand, peek: P.deck.slice(0, P.peek) } : pub(P, i));
-  return { v: G.v, phase: G.phase, step: G.step, turn: G.turn, server: G.server, coinT: G.coinT || 0, setNo: G.setNo, ball: G.ball, winner: G.winner, you: me, placed: me === G.turn ? G.placed : [], players, log: G.log.slice(-80) };
+  return { v: G.v, phase: G.phase, step: G.step, turn: G.turn, server: G.server, chooser: G.chooser == null ? -1 : G.chooser, coinT: G.coinT || 0, setNo: G.setNo, ball: G.ball, winner: G.winner, you: me, placed: me === G.turn ? G.placed : [], players, log: G.log.slice(-80) };
 }
 export { SimError };

@@ -9,6 +9,7 @@
 
 export const ZONES = ['serve', 'block', 'receive', 'toss', 'attack'];
 export const STAT = { serve: 0, block: 1, receive: 2, toss: 3, attack: 4 };
+const ZNAME = { serve: 'saque', block: 'bloqueo', receive: 'recepción', toss: 'colocación', attack: 'ataque' };
 const HAND0 = 6, MAX_DECK = 60;
 
 const rnd = n => { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] % n; };
@@ -74,6 +75,12 @@ function endTurn(G, s) {
   const d = 1 - s; G.turn = d;
   if (G.ball && G.ball.kind === 'spike') G.step = 'choose';
   else startReceive(G, d);
+}
+// Fin de la fase de bloqueo sin parar el balón (bloqueo insuficiente o Toque): laterales al drop, robo y recepción del mismo jugador
+function afterBlock(G, s) {
+  const P = G.p[s];
+  if (P.side.length) { P.drop.push(...P.side); P.side = []; }
+  resetMods(G); startReceive(G, s);
 }
 function startReceive(G, s) {
   const k = draw(G, s, 1);
@@ -149,6 +156,8 @@ export function act(G, s, a) {
       if (!ZONES.includes(zone)) no('Ahora no se coloca ningún personaje.');
       const i = findHand(a.u), c = P.hand[i];
       if (c.ev) no('Los eventos van a la zona de eventos.');
+      // un «-» en la estadística de esa posición: ese personaje no puede jugar ahí (si la carta no trae estadísticas, no se comprueba)
+      if (c.st.some(x => x != null) && c.st[STAT[zone]] == null) no(`Este personaje tiene «-» en ${ZNAME[zone]}: no puede ponerse ahí.`);
       if (zone === 'block') {
         if (G.placed.length >= 3) no('Como mucho 3 bloqueadores.');
         const inBlock = G.placed.map(u => [top(P.z.block), ...P.side].find(x => x && x.u === u)).filter(Boolean);
@@ -187,7 +196,7 @@ export function act(G, s, a) {
       else if (st === 'block') {
         const t = zonePts(P, 'block'), need = G.ball ? G.ball.power : 0;
         if (t >= need) { G.ball = { power: 0, kind: 'block', from: s }; log(G, s, 'block', { p: t, vs: need, ok: true }); endTurn(G, s); }   // el balón devuelto por un bloqueo vuelve con 0
-        else { log(G, s, 'block', { p: t, vs: need, ok: false }); lost(G, s, 'block'); }
+        else { log(G, s, 'block', { p: t, vs: need, ok: false }); afterBlock(G, s); }   // el bloqueo no basta: no se pierde el punto, se pasa a recibir
       } else if (st === 'receive') {
         const t = zonePts(P, 'receive'), need = G.ball ? G.ball.power : 0;
         if (t >= need) { log(G, s, 'receive', { p: t, vs: need, ok: true }); G.step = 'toss'; G.placed = []; }
@@ -211,6 +220,13 @@ export function act(G, s, a) {
       P.mod[a.zone] += d; log(G, s, 'mod', { z: a.zone, d });
       break;
     }
+    case 'touch': {   // Toque (N): el ataque rival −N, termina la fase de bloqueo y pasas a robar y recibir
+      if (G.phase !== 'play' || !mine || G.step !== 'block' || !G.ball) no('El Toque solo se usa en tu fase de bloqueo.');
+      const n = Math.max(1, Math.min(20, Math.round(+a.n || 0)));
+      G.ball.power = Math.max(0, G.ball.power - n); log(G, s, 'touch', { n, p: G.ball.power });
+      afterBlock(G, s);
+      break;
+    }
     case 'ballmod': {
       if (G.phase !== 'play' || !G.ball) no('No hay balón en juego.');
       const d = Math.max(-20, Math.min(20, Math.round(+a.d || 0))); if (!d) return false;
@@ -224,10 +240,10 @@ export function act(G, s, a) {
     }
     case 'shuffle': { if (G.phase !== 'play') no('La partida no está en juego.'); shuffle(P.deck); P.peek = 0; log(G, s, 'shuffle'); break; }
     case 'peek': { if (G.phase !== 'play') no('La partida no está en juego.'); P.peek = Math.max(0, Math.min(10, Math.round(+a.n || 0))); if (P.peek) log(G, s, 'peek', { n: P.peek }); break; }
-    case 'guts': {   // pagar agallas: las de debajo del personaje van al drop
+    case 'guts': {   // pagar Guts: las de debajo del personaje van al drop
       if (G.phase !== 'play' || !ZONES.includes(a.zone)) no('Zona no válida.');
       const z = P.z[a.zone], n = Math.max(1, Math.min(z.length - 1, Math.round(+a.n || 1)));
-      if (z.length < 2) no('Ese personaje no tiene agallas.');
+      if (z.length < 2) no('Ese personaje no tiene Guts.');
       const paid = z.splice(0, n); P.drop.push(...paid); log(G, s, 'guts', { z: a.zone, n: paid.length });
       break;
     }

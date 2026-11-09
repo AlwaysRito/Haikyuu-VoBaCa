@@ -136,7 +136,6 @@ export function act(G, s, a) {
       if (!ZONES.includes(zone)) no('Ahora no se coloca ningún personaje.');
       const i = findHand(a.u), c = P.hand[i];
       if (c.ev) no('Los eventos van a la zona de eventos.');
-      if (c.ball) no('Los recogepelotas (ボール拾い) van a la zona de eventos.');
       if (zone === 'block') {
         if (G.placed.length >= 3) no('Como mucho 3 bloqueadores.');
         const inBlock = G.placed.map(u => [top(P.z.block), ...P.side].find(x => x && x.u === u)).filter(Boolean);
@@ -188,7 +187,7 @@ export function act(G, s, a) {
     case 'event': {
       if (G.phase !== 'play') no('La partida no está en juego.');
       const i = findHand(a.u), c = P.hand[i];
-      if (!c.ev && !c.ball) no('Aquí solo van los eventos y los recogepelotas (ボール拾い).');
+      if (!c.ev && !c.ball) no('Esa carta no se puede poner en la zona de eventos.');
       P.hand.splice(i, 1); P.ev.push(c); log(G, s, 'event', { c: nameOf(c) });
       break;
     }

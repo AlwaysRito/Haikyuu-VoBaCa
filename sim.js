@@ -172,7 +172,7 @@ export function act(G, s, a) {
         P.hand.splice(i, 1); P.z[zone].push(c);
       }
       G.placed.push(c.u);
-      log(G, s, 'place', { z: zone, c: nameOf(c), side: zone === 'block' && P.side.includes(c) });
+      log(G, s, 'place', { z: zone, c: nameOf(c), u: c.u, side: zone === 'block' && P.side.includes(c) });
       break;
     }
     case 'unplace': {
@@ -210,7 +210,7 @@ export function act(G, s, a) {
       if (G.phase !== 'play') no('La partida no está en juego.');
       const i = findHand(a.u), c = P.hand[i];
       if (!c.ev && !c.ball) no('Esa carta no se puede poner en la zona de eventos.');
-      P.hand.splice(i, 1); P.ev.push(c); log(G, s, 'event', { c: nameOf(c) });
+      P.hand.splice(i, 1); P.ev.push(c); log(G, s, 'event', { c: nameOf(c), u: c.u });
       break;
     }
     case 'mod': {
@@ -267,7 +267,7 @@ export function act(G, s, a) {
       else { P.hand.push(c); no('Destino no válido.'); }
       G.placed = G.placed.filter(u => u !== c.u);
       const pub = !['hand', 'deck', 'set'].includes(from) || !['hand', 'deckTop', 'deckBottom', 'set'].includes(to);
-      log(G, s, 'move', { c: pub ? nameOf(c) : '', from, to });
+      log(G, s, 'move', { c: pub ? nameOf(c) : '', u: pub ? c.u : '', from, to });
       break;
     }
     case 'lost': {

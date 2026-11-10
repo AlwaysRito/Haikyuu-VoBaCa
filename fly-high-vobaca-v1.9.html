@@ -1111,7 +1111,7 @@ body.sim-on{overflow:hidden}
         <div class="trfoot"><span id="iTrMsg"></span><a class="itr" id="iTr" href="#" target="_blank" rel="noopener">Google Translate ↗</a></div>
       </div>
       <div class="trbox trbox2" id="iTtBox" hidden>
-        <div class="trhead"><b>Rasgos traducidos</b><label class="trprev"><input type="checkbox" id="iTtOn"> Ponerlos en el proxy</label><span class="tracts"><button type="button" class="linkbtn" id="iTtReset">Restablecer</button></span></div>
+        <div class="trhead"><b>Rasgos traducidos</b><label class="trprev"><input type="checkbox" id="iTtOn"> Ponerlos en el proxy</label><label class="trprev" id="iPrint2Wrap" hidden><input type="checkbox" id="iPrint2"> Imprimir con rasgos</label><span class="tracts"><button type="button" class="linkbtn" id="iTtReset">Restablecer</button></span></div>
         <textarea id="iTtText" rows="2" spellcheck="true" aria-label="Rasgos traducidos (editables)" placeholder="Instituto · curso · posición"></textarea>
         <p class="lay-hint">Tienen su propio recuadro: arrástralo a donde quieras sobre la carta (asa naranja de arriba: alto; la de la derecha: ancho). Cada línea es un bloque.</p>
       </div>
@@ -2749,26 +2749,32 @@ function addOverlay(box, id, txt) {
   box.querySelectorAll('.ovl').forEach(x => x.remove());
   const c = BY_ID[id]; if (!c || c.lang === 'en') return null;
   const t = TR[trKeyFor(c.no)] || (txt ? { t: txt } : null); const top = jpBoxTop(c);
-  if (!t || !t.t || top == null) return null;
+  const hasTxt = !!(t && t.t && top != null);
+  if (!hasTxt && !(OVL_TRAITS && !c.ev)) return null;   // sin texto: solo el recuadro de rasgos
   const L = LAY[id] || {}, side = L.side != null ? L.side : LAY_DEF.side;
-  const o = document.createElement('div'); o.className = 'ovl'; o.dataset.id = id;
-  o.dataset.top = L.top != null ? L.top : top;
-  o.style.top = o.dataset.top + '%';
-  o.style.bottom = (L.bot != null ? L.bot : LAY_DEF.bot) + '%';
-  o.style.left = (L.l != null ? L.l : side) + '%'; o.style.right = (L.r != null ? L.r : side) + '%';
-  o.innerHTML = ovlHtml(t.t);
-  box.appendChild(o);
+  let o = null;
+  if (hasTxt) {
+    o = document.createElement('div'); o.className = 'ovl'; o.dataset.id = id;
+    o.dataset.top = L.top != null ? L.top : top;
+    o.style.top = o.dataset.top + '%';
+    o.style.bottom = (L.bot != null ? L.bot : LAY_DEF.bot) + '%';
+    o.style.left = (L.l != null ? L.l : side) + '%'; o.style.right = (L.r != null ? L.r : side) + '%';
+    o.innerHTML = ovlHtml(t.t);
+    box.appendChild(o);
+  }
   if (OVL_TRAITS && !c.ev) {   // los rasgos van en su propio recuadro, que se coloca aparte
     const T = L.T || {}, k = document.createElement('div'); k.className = 'ovl ovl-t'; k.dataset.id = id; k.dataset.k = 'T';
     if (T.top != null) { k.style.top = T.top + '%'; k.style.bottom = T.bot + '%'; }
     k.style.left = (T.l != null ? T.l : side) + '%'; k.style.right = (T.r != null ? T.r : side) + '%';
     k.innerHTML = traitHtml(c); box.appendChild(k);
+    if (!o) o = k;
   }
   return o;
 }
 // Reduce la letra hasta que quepa; si no cabe, el recuadro crece hacia arriba (salvo que lo hayas fijado a mano)
 function fitOverlay(o) {
   if (!o || !o.isConnected) return;
+  if (o.dataset.k === 'T') { fitTraits(o, 84, 3); return; }   // carta sin texto: solo rasgos, por defecto sobre la zona del nombre
   const L = LAY[o.dataset.id] || {};
   let top = +o.dataset.top, size = L.fs != null ? L.fs : 3.1;
   const apply = () => { o.style.top = top + '%'; o.style.fontSize = size + 'cqw'; };
@@ -2853,7 +2859,7 @@ $('lyAuto').onchange = () => setLay('fs', $('lyAuto').checked ? null : +$('lyFs'
 $('lyReset').onclick = () => { const off = ovlOff(infoId); LAY[infoId] = { t: Date.now() }; if (off) LAY[infoId].off = true; saveLAY(); refreshInfoOverlay(); };
 function refreshInfoOverlay() {
   const o = $('iPrev').checked ? addOverlay($('iCardBox'), infoId) : ($('iCardBox').querySelectorAll('.ovl').forEach(x => x.remove()), null);
-  if (o) requestAnimationFrame(() => { fitOverlay(o); paintLay(o); ovlDrag(o, infoId, () => refreshInfoOverlay()); });
+  if (o) requestAnimationFrame(() => { fitOverlay(o); paintLay(o.dataset.k === 'T' ? null : o); ovlDrag(o, infoId, () => refreshInfoOverlay()); });
   else paintLay(null);
   paintInfoTraits();
 }
@@ -2879,9 +2885,11 @@ function paintInfoTraits() {
   const jp = c.lang !== 'en'; $('iPrintWrap').hidden = !jp; $('iPrint').checked = !ovlOff(infoId);
   $('iTtBox').hidden = !jp || c.ev; if (!jp || c.ev) return;
   $('iTtOn').checked = OVL_TRAITS;
+  const noTxt = $('iTrBox').hidden; $('iPrint2Wrap').hidden = !noTxt; $('iPrint2').checked = !ovlOff(infoId);
   const t = TR[trKeyFor(c.no)], ta = $('iTtText');
   if (document.activeElement !== ta) ta.value = t && typeof t.tt === 'string' ? t.tt : traitPlain(c);
 }
+$('iPrint2').onchange = () => { $('iPrint').checked = $('iPrint2').checked; $('iPrint').onchange(); };
 $('iPrint').onchange = () => { const L = LAY[infoId] = { ...(LAY[infoId] || {}) }; if ($('iPrint').checked) delete L.off; else L.off = true; L.t = Date.now(); saveLAY(); if (view === 'sheets') renderSheets(); };
 $('iTtOn').onchange = () => { $('ovlTraits').checked = $('iTtOn').checked; $('ovlTraits').onchange(); if ($('iTtOn').checked && !$('iPrev').checked) { $('iPrev').checked = true; setOvl(true); } refreshInfoOverlay(); };
 let ttTimer = null;
@@ -3254,11 +3262,11 @@ function renderSheets() {
     const sheet = document.createElement('div'); sheet.className = 'sheet' + ($('cut').checked ? ' cut' : '');
     const g = document.createElement('div'); g.className = 'sgrid'; g.style.setProperty('--gap', gap);
     all.slice(p, p + 9).forEach(id => { const c = document.createElement('div'); c.className = 'card'; const pid = printImg(id); c.innerHTML = `<img alt="" src="${imgOf(pid)}">`; if (OVL && pid === id && !ovlOff(id)) addOverlay(c, id);
-      if (OVL && pid === id && BY_ID[id] && BY_ID[id].lang !== 'en' && TR[trKeyFor(BY_ID[id].no)]) { const sw = document.createElement('button'); sw.type = 'button'; sw.className = 'ovl-sw' + (ovlOff(id) ? ' off' : ''); sw.textContent = 'T'; sw.title = ovlOff(id) ? 'Sin traducción: toca para ponerla' : 'Con traducción: toca para quitarla en esta carta'; sw.onclick = e => { e.stopPropagation(); const L = LAY[id] = { ...(LAY[id] || {}) }; if (L.off) delete L.off; else L.off = true; L.t = Date.now(); saveLAY(); renderSheets(); }; c.appendChild(sw); }
+      if (OVL && pid === id && BY_ID[id] && BY_ID[id].lang !== 'en' && (TR[trKeyFor(BY_ID[id].no)] || (OVL_TRAITS && !BY_ID[id].ev))) { const sw = document.createElement('button'); sw.type = 'button'; sw.className = 'ovl-sw' + (ovlOff(id) ? ' off' : ''); sw.textContent = 'T'; sw.title = ovlOff(id) ? 'Sin traducción: toca para ponerla' : 'Con traducción: toca para quitarla en esta carta'; sw.onclick = e => { e.stopPropagation(); const L = LAY[id] = { ...(LAY[id] || {}) }; if (L.off) delete L.off; else L.off = true; L.t = Date.now(); saveLAY(); renderSheets(); }; c.appendChild(sw); }
       g.appendChild(c); });
     sheet.appendChild(g); wrap.appendChild(sheet); out.appendChild(wrap);
   }
-  if (OVL) requestAnimationFrame(() => out.querySelectorAll('.ovl').forEach(o => { fitOverlay(o); ovlDrag(o, o.dataset.id, x => fitOverlay(x)); }));
+  if (OVL) requestAnimationFrame(() => out.querySelectorAll('.card').forEach(cd => { const o = cd.querySelector('.ovl:not(.ovl-t)') || cd.querySelector('.ovl-t'); if (o) { fitOverlay(o); ovlDrag(o, o.dataset.id, x => fitOverlay(x)); } }));
   const miss = OVL ? missingTr() : [];
   $('ovlInfo').hidden = !miss.length;
   if (miss.length) $('ovlMissing').textContent = `${miss.length} ${miss.length === 1 ? 'carta japonesa no tiene' : 'cartas japonesas no tienen'} traducción todavía.`;

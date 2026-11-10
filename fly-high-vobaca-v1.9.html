@@ -2750,7 +2750,7 @@ function addOverlay(box, id, txt) {
   const c = BY_ID[id]; if (!c || c.lang === 'en') return null;
   const t = TR[trKeyFor(c.no)] || (txt ? { t: txt } : null); const top = jpBoxTop(c);
   const hasTxt = !!(t && t.t && top != null);
-  if (!hasTxt && !(OVL_TRAITS && !c.ev)) return null;   // sin texto: solo el recuadro de rasgos
+  if (!hasTxt && !OVL_TRAITS) return null;   // sin texto: solo el recuadro de rasgos
   const L = LAY[id] || {}, side = L.side != null ? L.side : LAY_DEF.side;
   let o = null;
   if (hasTxt) {
@@ -2762,7 +2762,7 @@ function addOverlay(box, id, txt) {
     o.innerHTML = ovlHtml(t.t);
     box.appendChild(o);
   }
-  if (OVL_TRAITS && !c.ev) {   // los rasgos van en su propio recuadro, que se coloca aparte
+  if (OVL_TRAITS) {   // los rasgos van en su propio recuadro, que se coloca aparte
     const T = L.T || {}, k = document.createElement('div'); k.className = 'ovl ovl-t'; k.dataset.id = id; k.dataset.k = 'T';
     if (T.top != null) { k.style.top = T.top + '%'; k.style.bottom = T.bot + '%'; }
     k.style.left = (T.l != null ? T.l : side) + '%'; k.style.right = (T.r != null ? T.r : side) + '%';
@@ -2877,13 +2877,13 @@ function traitLine(c) {
   const pos = (c.pos || []).map(x => en ? (POS_EN[x] || x) : (POS_ES[x] || x)).join(' / ');
   const lab = en ? ['Serve', 'Block', 'Rec.', 'Set', 'Attack'] : ['Saque', 'Bloq.', 'Recep.', 'Coloc.', 'Ataque'];
   const st = !c.ev && c.st ? c.st.map((v, i) => `${lab[i]} <b>${v == null ? '–' : v}</b>`).join(' · ') : '';
-  return [[where, grades, pos].filter(Boolean).join(' · '), st].filter(Boolean).map(x => `<span>${x}</span>`).join('');
+  return [[c.ev ? (en ? 'Event' : 'Evento') : '', where, grades, pos].filter(Boolean).join(' · '), st].filter(Boolean).map(x => `<span>${x}</span>`).join('');
 }
 $('iPrev').onchange = () => { setOvl($('iPrev').checked); refreshInfoOverlay(); };
 function paintInfoTraits() {
   const c = BY_ID[infoId]; if (!c) return;
   const jp = c.lang !== 'en'; $('iPrintWrap').hidden = !jp; $('iPrint').checked = !ovlOff(infoId);
-  $('iTtBox').hidden = !jp || c.ev; if (!jp || c.ev) return;
+  $('iTtBox').hidden = !jp; if (!jp) return;
   $('iTtOn').checked = OVL_TRAITS;
   const noTxt = $('iTrBox').hidden; $('iPrint2Wrap').hidden = !noTxt; $('iPrint2').checked = !ovlOff(infoId);
   const t = TR[trKeyFor(c.no)], ta = $('iTtText');
@@ -3262,7 +3262,7 @@ function renderSheets() {
     const sheet = document.createElement('div'); sheet.className = 'sheet' + ($('cut').checked ? ' cut' : '');
     const g = document.createElement('div'); g.className = 'sgrid'; g.style.setProperty('--gap', gap);
     all.slice(p, p + 9).forEach(id => { const c = document.createElement('div'); c.className = 'card'; const pid = printImg(id); c.innerHTML = `<img alt="" src="${imgOf(pid)}">`; if (OVL && pid === id && !ovlOff(id)) addOverlay(c, id);
-      if (OVL && pid === id && BY_ID[id] && BY_ID[id].lang !== 'en' && (TR[trKeyFor(BY_ID[id].no)] || (OVL_TRAITS && !BY_ID[id].ev))) { const sw = document.createElement('button'); sw.type = 'button'; sw.className = 'ovl-sw' + (ovlOff(id) ? ' off' : ''); sw.textContent = 'T'; sw.title = ovlOff(id) ? 'Sin traducción: toca para ponerla' : 'Con traducción: toca para quitarla en esta carta'; sw.onclick = e => { e.stopPropagation(); const L = LAY[id] = { ...(LAY[id] || {}) }; if (L.off) delete L.off; else L.off = true; L.t = Date.now(); saveLAY(); renderSheets(); }; c.appendChild(sw); }
+      if (OVL && pid === id && BY_ID[id] && BY_ID[id].lang !== 'en' && (TR[trKeyFor(BY_ID[id].no)] || OVL_TRAITS)) { const sw = document.createElement('button'); sw.type = 'button'; sw.className = 'ovl-sw' + (ovlOff(id) ? ' off' : ''); sw.textContent = 'T'; sw.title = ovlOff(id) ? 'Sin traducción: toca para ponerla' : 'Con traducción: toca para quitarla en esta carta'; sw.onclick = e => { e.stopPropagation(); const L = LAY[id] = { ...(LAY[id] || {}) }; if (L.off) delete L.off; else L.off = true; L.t = Date.now(); saveLAY(); renderSheets(); }; c.appendChild(sw); }
       g.appendChild(c); });
     sheet.appendChild(g); wrap.appendChild(sheet); out.appendChild(wrap);
   }

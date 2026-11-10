@@ -85,6 +85,8 @@ h1 .ver{font:600 12px var(--body);color:var(--muted);letter-spacing:0;text-trans
 .advfoot{display:flex;align-items:center;gap:8px;justify-content:space-between;font-size:13px;color:var(--muted)}
 .tile .infob{position:absolute;bottom:4px;right:4px;width:28px;height:28px;border-radius:14px;border:0;background:rgba(0,0,0,.65);color:#fff;font:700 15px/28px Georgia,serif;cursor:pointer}
 .tile .imgwrap{position:relative}
+.tile .mayb{position:absolute;bottom:4px;right:36px;height:28px;min-width:28px;border-radius:14px;border:0;background:rgba(0,0,0,.65);color:#fff;font:700 12px/28px var(--display);padding:0 6px;cursor:pointer}
+.tile .mayb:hover,.tile .infob:hover{background:var(--accent)}
 dialog.info{width:min(720px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto}
 .infobody{display:grid;grid-template-columns:minmax(0,220px) minmax(0,1fr);gap:16px}
 @media (max-width:560px){.infobody{grid-template-columns:1fr}.infobody .pcard{max-width:240px;width:100%;justify-self:center}}
@@ -1124,6 +1126,7 @@ body.sim-on{overflow:hidden}
   <div class="row">
     <span class="msg" id="iCount"></span>
     <button class="btn ghost" id="iMinus" type="button">−1</button>
+    <button class="btn ghost" id="iMaybeM" type="button" hidden>− Maybe</button>
     <button class="btn ghost" id="iMaybe" type="button">+ Maybe</button>
     <button class="btn" id="iPlus" type="button">+1</button>
     <button class="btn ghost" id="iClose" type="button">Cerrar</button>
@@ -1194,6 +1197,7 @@ body.sim-on{overflow:hidden}
   </div>
 </dialog>
 
+<style>.pub-tags{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0 2px}.pub-tags .chip{border:1px solid var(--line);background:var(--bg);color:inherit;border-radius:999px;padding:5px 11px;font:600 13px var(--body);cursor:pointer}.pub-tags .chip[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:#fff}.pub-tags .chip small{opacity:.75;font-weight:500}.pub-tags .chip:disabled{opacity:.45;cursor:default}.pub-tags select{max-width:220px}</style>
 <dialog id="pubDlg" class="imgdlg">
   <h2>Mazos públicos</h2>
   <p class="bk-sum" id="pubInfo"></p>
@@ -1204,6 +1208,7 @@ body.sim-on{overflow:hidden}
     <select id="pubArch" class="mini" aria-label="Arquetipo"></select>
     <select id="pubSort" class="mini" aria-label="Orden"><option value="new">Más nuevos</option><option value="fav">Más favoritos</option><option value="old">Más antiguos</option></select>
   </div>
+  <div class="pub-tags" id="pubTags"><button class="chip" type="button" data-pt="tour" aria-pressed="false">🏆 Para torneos</button><button class="chip" type="button" data-pt="comp" aria-pressed="false">⚔️ Competitivo</button><button class="chip" type="button" data-pt="win" aria-pressed="false">🥇 Ganador</button><select id="pubTag" class="mini" aria-label="Etiqueta"></select></div>
   <div id="pubList" class="pub-list"></div>
   <div class="row">
     <span class="msg" id="pubMsg"></span>
@@ -2467,7 +2472,9 @@ function tile(c) {
   el.querySelector('.img').onclick = () => change(c.id, +1);
   const ib = document.createElement('button'); ib.className = 'infob'; ib.type = 'button'; ib.textContent = 'i';
   ib.setAttribute('aria-label', 'Ver detalles'); ib.onclick = e => { e.stopPropagation(); openInfo(c.id); };
-  el.querySelector('.img').after(ib);
+  const mb = document.createElement('button'); mb.className = 'mayb'; mb.type = 'button'; mb.textContent = 'M+'; mb.title = 'Añadir una al Maybeboard';
+  mb.setAttribute('aria-label', 'Añadir una al Maybeboard'); mb.onclick = e => { e.stopPropagation(); changeMaybe(c.id, +1); toast(`${c.en || c.jp}: ${mSel[c.id]} en Maybe`); };
+  el.querySelector('.img').after(ib, mb);
   paintTile(el);
   return el;
 }
@@ -2845,7 +2852,7 @@ $('ovlTranslate').onclick = async () => {
 };
 
 function paintInfo() {
-  const n = sel[infoId] || 0, m = mSel[infoId] || 0; $('iCount').textContent = [n ? `${n} en el mazo` : '', m ? `${m} en Maybe` : ''].filter(Boolean).join(' · '); $('iMinus').disabled = !n;
+  const n = sel[infoId] || 0, m = mSel[infoId] || 0; $('iCount').textContent = [n ? `${n} en el mazo` : '', m ? `${m} en Maybe` : ''].filter(Boolean).join(' · '); $('iMinus').disabled = !n; $('iMaybeM').hidden = !m;
   const c = BY_ID[infoId], own = c ? owned(c.no) : 0; $('iColN').textContent = own; $('iColM').disabled = !own;
 }
 function setOwned(no, n) {
@@ -2859,6 +2866,7 @@ $('iColM').onclick = () => { const c = BY_ID[infoId]; setOwned(c.no, owned(c.no)
 $('iPlus').onclick = () => { change(infoId, +1); paintInfo(); };
 $('iMinus').onclick = () => { change(infoId, -1); paintInfo(); };
 $('iMaybe').onclick = () => { changeMaybe(infoId, +1); paintInfo(); };
+$('iMaybeM').onclick = () => { changeMaybe(infoId, -1); paintInfo(); };
 $('iClose').onclick = () => {
   if (trEditing && trKey) { clearTimeout(trTimer); TR[trKey] = { ...(TR[trKey] || {}), t: $('iTrText').value, ed: true, ts: Date.now() }; saveTR(); }
   const d = $('info'); d.close ? d.close() : d.removeAttribute('open');
@@ -4561,7 +4569,7 @@ function pubPrep() {   // institutos y texto de búsqueda de cada mazo
     const schools = Object.entries(cnt).sort((a, b) => b[1] - a[1]).filter(([, n], i) => i === 0 || n >= 8).slice(0, 2).map(([k]) => k);
     return { d, total, schools, hay: normQ(words.join(' ')) };
   });
-  pubArchPrep();
+  pubArchPrep(); pubTagsPrep();
   const all = {}; pubMeta.forEach(m => m.schools.forEach(sc => all[sc] = (all[sc] || 0) + 1));
   const keep = $('pubAff').value;
   $('pubAff').innerHTML = opt('', 'Todos los institutos') + SCHOOLS.filter(([k]) => all[k]).map(([k, v]) => opt(k, `${v} (${all[k]})`)).join('');
@@ -4569,7 +4577,7 @@ function pubPrep() {   // institutos y texto de búsqueda de cada mazo
 }
 function renderPub() {
   const q = normQ($('pubQ').value), aff = $('pubAff').value, sort = $('pubSort').value;
-  let list = pubMeta.filter(m => (!q || m.hay.includes(q)) && (!aff || m.schools.includes(aff)) && archMatch(m));
+  let list = pubMeta.filter(m => (!q || m.hay.includes(q)) && (!aff || m.schools.includes(aff)) && archMatch(m) && tagMatch(m));
   const dt = m => m.d[3] || '';
   list.sort(sort === 'fav' ? (a, b) => b.d[4] - a.d[4] || dt(b).localeCompare(dt(a)) : sort === 'old' ? (a, b) => dt(a).localeCompare(dt(b)) : (a, b) => dt(b).localeCompare(dt(a)));
   const box = $('pubList'); box.innerHTML = '';
@@ -4601,7 +4609,7 @@ function openPub() {
   setPubTab(pubTab);
   const d = $('pubDlg'); d.showModal ? d.showModal() : d.setAttribute('open', '');
 }
-['pubQ', 'pubAff', 'pubSort', 'pubArch'].forEach(id => $(id).addEventListener('input', () => { pubLimit = 40; metaLimit = 40; setPubTab(pubTab); }));
+['pubQ', 'pubAff', 'pubSort', 'pubArch', 'pubTag'].forEach(id => $(id).addEventListener('input', () => { pubLimit = 40; metaLimit = 40; setPubTab(pubTab); }));
 $('pubClose').onclick = () => { const d = $('pubDlg'); d.close ? d.close() : d.removeAttribute('open'); };
 $('pubRefresh').onclick = () => { $('pubClose').onclick(); openOfficial('decks'); };
 $('dkPub').onclick = () => openPub();
@@ -4761,7 +4769,7 @@ function paintInfoMeta(c) {
 let pubTab = 'decks', metaLimit = 40;
 function renderMetaList() {
   const q = normQ($('pubQ').value), aff = $('pubAff').value;
-  const list = pubMeta.filter(m => (!q || m.hay.includes(q)) && (!aff || m.schools.includes(aff)) && archMatch(m));
+  const list = pubMeta.filter(m => (!q || m.hay.includes(q)) && (!aff || m.schools.includes(aff)) && archMatch(m) && tagMatch(m));
   const bucket = { n: 0, by: {} }; list.forEach(m => countByNo(m, bucket));
   const rows = Object.entries(bucket.by).sort((a, b) => b[1][0] - a[1][0] || b[1][1] - a[1][1]);
   const box = $('pubList'); box.innerHTML = '';
@@ -6218,10 +6226,36 @@ function pubArchPrep() {
     `<optgroup label="Arquetipo">${Object.entries(lb).filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1]).map(([l, n]) => opt('a:' + esc(l), `${esc(l)} (${n})`)).join('')}</optgroup>`;
   if ([...$('pubArch').options].some(o => o.value === keep)) $('pubArch').value = keep;
 }
+// Etiquetas oficiales que marcan los mazos «serios» (la web oficial las pone en japonés o en inglés)
+const PUB_TAG_RE = { tour: /大会|トーナメント|tournament|公認|CS\b/i, comp: /ガチ|競技|本気|ランク|competitive|tier/i, win: /優勝|入賞|上位|準優勝|winner|winning|champion|top\s?\d/i };
+const PUB_TAG_ON = new Set();
+const pubTagsOf = m => (m.d[5] || '').split(',').map(t => t.trim()).filter(Boolean);
+const tagMatch = m => {
+  const tags = pubTagsOf(m), one = $('pubTag') ? $('pubTag').value : '';
+  if (one && !tags.includes(one)) return false;
+  if (!PUB_TAG_ON.size) return true;
+  return [...PUB_TAG_ON].some(k => tags.some(t => PUB_TAG_RE[k].test(t)));   // vale cualquiera de las marcadas
+};
+function pubTagsPrep() {
+  const cnt = {}; pubMeta.forEach(m => pubTagsOf(m).forEach(t => cnt[t] = (cnt[t] || 0) + 1));
+  const sel = $('pubTag'), keep = sel.value;
+  sel.innerHTML = opt('', 'Todas las etiquetas') + Object.entries(cnt).sort((a, b) => b[1] - a[1]).map(([t, n]) => opt(esc(t), `${esc(t)} (${n})`)).join('');
+  if (cnt[keep]) sel.value = keep;
+  document.querySelectorAll('#pubTags [data-pt]').forEach(b => {
+    const k = b.dataset.pt, n = pubMeta.filter(m => pubTagsOf(m).some(t => PUB_TAG_RE[k].test(t))).length;
+    if (!b.dataset.lb) b.dataset.lb = b.textContent;
+    b.innerHTML = `${esc(b.dataset.lb)} <small>${n}</small>`; b.disabled = !n && !PUB_TAG_ON.has(k);
+  });
+  $('pubTags').hidden = !Object.keys(cnt).length;
+}
+document.querySelectorAll('#pubTags [data-pt]').forEach(b => b.onclick = () => {
+  const k = b.dataset.pt; PUB_TAG_ON.has(k) ? PUB_TAG_ON.delete(k) : PUB_TAG_ON.add(k);
+  b.setAttribute('aria-pressed', String(PUB_TAG_ON.has(k))); pubLimit = 40; metaLimit = 40; setPubTab(pubTab);
+});
 const archMatch = m => { const f = $('pubArch').value; if (!f) return true; if (f.startsWith('s:')) return m.arch.style === f.slice(2); return m.arch.label === f.slice(2); };
 function renderArchList() {
   const q = normQ($('pubQ').value), aff = $('pubAff').value;
-  const list = pubMeta.filter(m => (!q || m.hay.includes(q)) && (!aff || m.schools.includes(aff)));
+  const list = pubMeta.filter(m => (!q || m.hay.includes(q)) && (!aff || m.schools.includes(aff)) && tagMatch(m));
   const g = {}; list.forEach(m => { const x = g[m.arch.label] = g[m.arch.label] || { n: 0, fav: 0, sch: {}, style: m.arch.style, key: null }; x.n++; x.fav += m.d[4] || 0; m.schools.forEach(s2 => x.sch[s2] = (x.sch[s2] || 0) + 1); if (!x.key) x.key = m; });
   const rows = Object.entries(g).sort((a, b) => b[1].n - a[1].n);
   const box = $('pubList'); box.innerHTML = '';

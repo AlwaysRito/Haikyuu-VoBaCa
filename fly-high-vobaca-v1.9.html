@@ -819,6 +819,13 @@ body.sim-on{overflow:hidden}
 #simPeekBig .sim-band{background:rgba(17,21,27,.95);border:1px solid #2a323e;border-radius:10px;padding:6px 8px;margin-top:6px;color:#e7ebf1}
 @media (min-width:900px){.sim-sheet .sim-big{width:220px}}
 #simPeekBig{position:fixed;z-index:40;pointer-events:none;filter:drop-shadow(0 10px 24px rgba(0,0,0,.6))}
+#simSpot{position:fixed;z-index:35;right:12px;top:50%;width:min(270px,44vw);transform:translate(calc(100% + 24px),-50%);transition:transform .25s ease;background:var(--panel,#1b2129);color:var(--fg,#fff);border:1px solid var(--line);border-radius:12px;padding:8px;box-shadow:0 10px 30px rgba(0,0,0,.5);max-height:calc(100vh - 24px);overflow:auto}
+#simSpot.on{transform:translate(0,-50%)}
+#simSpot .spot-h{display:flex;align-items:center;gap:6px;justify-content:space-between;font:700 12px var(--body);margin-bottom:6px}
+#simSpot .spot-x{border:0;background:transparent;color:inherit;font-size:15px;cursor:pointer;padding:2px 6px}
+#simSpot .sim-big{width:100%}
+#simSpot .spot-off{display:block;margin-top:6px;font-size:11px;opacity:.75}
+@media (max-width:560px){#simSpot{top:auto;bottom:calc(150px + env(safe-area-inset-bottom,0px));right:8px;width:52vw;transform:translateX(calc(100% + 16px))}#simSpot.on{transform:none}}
 #simPeekBig[hidden]{display:none}
 .sim-peek-big{width:100%}
 </style>
@@ -4215,7 +4222,7 @@ function simConnect() {
       if (!SIM.v && j.view.phase === 'over') { try { const dn = JSON.parse(localStorage.getItem('fh-simrec') || '{}'); SIM.rec = dn[SIM.code + ':' + (j.view.coinT || j.view.log.length)] || null; } catch (e) {} }
       const prev = SIM.v; SIM.v = j.view; SIM.undo = j.undo || '';
       if (prev && prev.phase !== 'over' && j.view.phase === 'over') simRecord(j.view);
-      simRender();
+      simRender(); simSpot(prev, j.view);
       if (prev && prev.phase === 'play' && j.view.setNo > prev.setNo) { const e = j.view.log.slice().reverse().find(x => x.k === 'setcard'); if (e) simToast(e.s === j.view.you ? 'Punto para tu rival: robáis hasta 6 y coges una carta de set.' : 'Punto para ti: robáis hasta 6 y tu rival coge una carta de set.'); }
     }
   };
@@ -4228,6 +4235,7 @@ function simConnect() {
   };
 }
 function simClose() {
+  { const d = $('simSpot'); if (d) d.classList.remove('on'); } SIM.spotT = null; SIM.noSpot = false;
   SIM.closing = true; if (SIM.ws) { try { SIM.ws.close(); } catch (e) {} } SIM.ws = null;
   $('simView').hidden = true; document.body.classList.remove('sim-on'); closeSimSheet();
   if (/#sala=/.test(location.hash)) try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
@@ -4476,6 +4484,27 @@ function simActsRender(v, me, op) {
 }
 // --- Carta en grande, con la traducción encima como en las proxies ---
 let SIM_TR = false; try { SIM_TR = localStorage.getItem('fh-simtr') === '1'; } catch (e) {}
+// Carta que acaba de jugar el rival: aparece a un lado, grande y traducida, para poder leerla
+function simSpot(prev, v) {
+  const last = v.log.length ? v.log[v.log.length - 1].t : 0;
+  if (!prev || SIM.spotT == null) { SIM.spotT = last; return; }   // al entrar no se repite lo ya jugado
+  const news = v.log.filter(e => e.t > SIM.spotT); SIM.spotT = Math.max(SIM.spotT, last);
+  if (v.phase !== 'play' || SIM.noSpot) return;
+  const e = news.reverse().find(x => x.s !== v.you && x.s >= 0 && (x.k === 'place' || x.k === 'event' || x.k === 'move') && x.a && x.a.u);
+  if (!e) return;
+  const P = v.players[e.s]; if (!P) return;
+  const all = [...Object.values(P.z || {}).flat(), ...(P.side || []), ...(P.ev || []), ...(P.drop || [])], c = all.find(x => x.u === e.a.u);
+  if (!c) return;
+  const what = e.k === 'event' ? 'juega el evento' : e.k === 'place' ? `pone en ${zName(e.a.z).toLowerCase()}${e.a.side ? ' (lateral)' : ''}` : 'mueve';
+  let d = $('simSpot');
+  if (!d) { d = document.createElement('div'); d.id = 'simSpot'; d.setAttribute('role', 'status'); document.body.appendChild(d); }
+  d.innerHTML = `<div class="spot-h"><span>${esc(P.nick || 'Tu rival')} ${what}</span><button type="button" class="spot-x" aria-label="Cerrar">✕</button></div>`;
+  d.appendChild(simBig(c, 'sim-big')); d.insertAdjacentHTML('beforeend', simBand(c) + '<label class="spot-off"><input type="checkbox"> No mostrar más en esta partida</label>');
+  d.querySelector('.spot-x').onclick = () => d.classList.remove('on');
+  d.querySelector('.spot-off input').onchange = ev => { SIM.noSpot = ev.target.checked; d.classList.remove('on'); };
+  d.onmouseenter = () => clearTimeout(SIM.spotTm); d.onmouseleave = () => { SIM.spotTm = setTimeout(() => d.classList.remove('on'), 3000); };
+  d.classList.add('on'); clearTimeout(SIM.spotTm); SIM.spotTm = setTimeout(() => d.classList.remove('on'), 9000);
+}
 function simBig(c, cls) {
   const d = document.createElement('div'); d.className = 'sim-prox ' + (cls || '');
   if (!c) return d;

@@ -41,6 +41,7 @@ function cookies(req) {
 }
 const setCookie = (name, value, maxAge) => `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`;
 
+const DEEPL_DAY = 60000;   // caracteres nuevos que cada persona puede mandar a DeepL al día (la cuota gratuita es de 500.000 al mes)
 let schemaReady = false;
 async function ensureSchema(env) {
   if (schemaReady) return;
@@ -59,7 +60,9 @@ async function ensureSchema(env) {
     env.DB.prepare(`CREATE INDEX IF NOT EXISTS friends_b ON friends(b)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS leagues (id TEXT PRIMARY KEY, name TEXT NOT NULL, owner TEXT NOT NULL, created INTEGER)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS league_members (league_id TEXT NOT NULL, user_id TEXT NOT NULL, ok INTEGER NOT NULL DEFAULT 0, invited_by TEXT, joined INTEGER, PRIMARY KEY (league_id, user_id))`),
-    env.DB.prepare(`CREATE INDEX IF NOT EXISTS lm_user ON league_members(user_id)`)
+    env.DB.prepare(`CREATE INDEX IF NOT EXISTS lm_user ON league_members(user_id)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS trcache (h TEXT PRIMARY KEY, tl TEXT NOT NULL, text TEXT NOT NULL, created INTEGER)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS trusage (user_id TEXT NOT NULL, day TEXT NOT NULL, chars INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, day))`)
   ]);
   schemaReady = true;
 }
@@ -86,8 +89,48 @@ const publicUser = u => ({ id: u.id, name: u.name || '', email: u.email || '', a
 
 async function api(req, env, url) {
   const p = url.pathname, m = req.method;
-  if (p === '/api/health') return json({ ok: true, app: 'fly-high-vobaca', login: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET), db: !!env.DB });
+  if (p === '/api/health') return json({ ok: true, app: 'fly-high-vobaca', login: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET), db: !!env.DB, deepl: !!env.DEEPL_KEY });
   await ensureSchema(env);
+
+  // ---- Traducción con DeepL (japonés → español / inglés) ----
+  // Cada texto se traduce una sola vez para todos: queda guardado en la base de datos y se reutiliza.
+  // Traducir textos nuevos exige haber entrado con la cuenta y tiene un límite diario por persona, para no gastar la cuota de DeepL.
+  if (p === '/api/translate' && m === 'POST') {
+    needSameApp(req);
+    const b = await readJson(req), tl = b.tl === 'en' ? 'en' : 'es';
+    const items = (Array.isArray(b.items) ? b.items : []).slice(0, 50).map(x => String((x && x.text) || '').slice(0, 4000)).filter(Boolean);
+    if (!items.length) return json({ out: [] });
+    const hs = await Promise.all(items.map(x => sha256('deepl|' + tl + '|' + x)));
+    const out = new Array(items.length).fill(null);
+    const uniq = [...new Set(hs)];
+    const rows = await env.DB.prepare(`SELECT h, text FROM trcache WHERE h IN (${uniq.map(() => '?').join(',')})`).bind(...uniq).all();
+    const got = {}; (rows.results || []).forEach(r => { got[r.h] = r.text; });
+    hs.forEach((h, i) => { if (got[h] != null) out[i] = got[h]; });
+    const miss = []; hs.forEach((h, i) => { if (out[i] == null && !miss.some(j => hs[j] === h)) miss.push(i); });
+    if (!miss.length) return json({ out, engine: 'deepl' });
+    if (!env.DEEPL_KEY) return json({ out, code: 'no_deepl', err: 'Falta configurar DeepL en el servidor.' });
+    const u = await currentUser(req, env);
+    if (!u) return json({ out, code: 'no_session', err: 'Entra con tu cuenta para traducir con DeepL.' });
+    const chars = miss.reduce((a, i) => a + items[i].length, 0), day = new Date().toISOString().slice(0, 10);
+    const used = await env.DB.prepare('SELECT chars FROM trusage WHERE user_id = ? AND day = ?').bind(u.id, day).first();
+    if ((used ? used.chars : 0) + chars > DEEPL_DAY) return json({ out, code: 'quota', err: 'Has llegado al límite diario de traducciones con DeepL. Mañana podrás seguir.' });
+    const key = String(env.DEEPL_KEY).trim(), host = key.endsWith(':fx') ? 'https://api-free.deepl.com' : 'https://api.deepl.com';
+    const r = await fetch(host + '/v2/translate', {
+      method: 'POST', headers: { Authorization: 'DeepL-Auth-Key ' + key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: miss.map(i => items[i]), source_lang: 'JA', target_lang: tl === 'en' ? 'EN-US' : 'ES', tag_handling: 'xml', ignore_tags: ['k'], preserve_formatting: true })
+    });
+    if (r.status === 456) return json({ out, code: 'deepl_quota', err: 'Se ha agotado la cuota mensual de DeepL.' });
+    if (!r.ok) return json({ out, code: 'deepl', err: 'DeepL no ha respondido (' + r.status + (r.status === 403 ? ': revisa la clave' : '') + ').' });
+    const j = await r.json(), t = now(), ins = [];
+    (j.translations || []).forEach((x, n) => {
+      const i = miss[n]; if (i == null || !x || typeof x.text !== 'string') return;
+      hs.forEach((h, k) => { if (h === hs[i]) out[k] = x.text; });
+      ins.push(env.DB.prepare('INSERT OR REPLACE INTO trcache (h, tl, text, created) VALUES (?, ?, ?, ?)').bind(hs[i], tl, x.text, t));
+    });
+    ins.push(env.DB.prepare('INSERT INTO trusage (user_id, day, chars) VALUES (?, ?, ?) ON CONFLICT(user_id, day) DO UPDATE SET chars = chars + excluded.chars').bind(u.id, day, chars));
+    await env.DB.batch(ins);
+    return json({ out, engine: 'deepl' });
+  }
 
   // ---- Entrar con Google (flujo con redirección: funciona también en la app instalada) ----
   if (p === '/api/auth/google' && m === 'GET') {

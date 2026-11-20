@@ -1105,7 +1105,7 @@ body.sim-on{overflow:hidden}
       <details class="ien" id="iEnBox"><summary>Texto oficial en inglés</summary><div class="iskill" id="iEnSkill"></div><div class="iann" id="iEnAnn"></div></details>
       <div class="trbox" id="iTrBox">
         <div class="trhead">
-          <select id="iTrLang" class="mini" aria-label="Idioma de la traducción"><option value="es">Español</option><option value="en">English</option></select><span class="trsrc" id="iTrSrc"></span>
+          <select id="iTrLang" class="mini" aria-label="Idioma de la traducción"><option value="es">Español</option><option value="en">English</option></select><select id="iTrEng" class="mini" aria-label="Traductor" title="DeepL necesita haber entrado con tu cuenta"><option value="deepl">DeepL</option><option value="google">Google</option></select><span class="trsrc" id="iTrSrc"></span>
           <label class="trprev" id="iPrevWrap"><input type="checkbox" id="iPrev"> Ver en el proxy</label>
           <label class="trprev" id="iPrintWrap" title="Solo para esta versión de la carta"><input type="checkbox" id="iPrint"> Imprimir con traducción</label>
           <span class="tracts">
@@ -2638,27 +2638,53 @@ async function translateText(q, sl, tl = TRL) {
   if (tl === 'es') POST_ES.forEach(([re, b]) => { out = out.replace(re, b); });
   return out;
 }
+// ---- DeepL (desde el servidor): japonés → español / inglés ----
+// Motor elegido: DeepL si el servidor lo tiene y has entrado con tu cuenta; si no, el de Google de siempre
+let TR_ENG = 'deepl';
+try { if (localStorage.getItem('vobaca-treng') === 'google') TR_ENG = 'google'; } catch (e) {}
+const deeplOn = () => { try { return TR_ENG === 'deepl' && !!AC.deepl; } catch (e) { return false; } };
+// Texto para DeepL: las palabras clave y los términos del juego ya traducidos van protegidos (<k>…</k>) para que DeepL no los toque
+function trSourceXml(text, tl = TRL) {
+  const kf = tl === 'en' ? kwEn : kwEs, X = v => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const parts = [], mark = v => { parts.push(v); return '\u0001' + (parts.length - 1) + '\u0002'; };
+  let t = text.replace(/¶/g, '\n').replace(/[\[［]=([^\]］]+)[\]］]/g, (m, k) => mark(`[${kf(k)}]`));
+  (tl === 'en' ? PRE_JA_EN : PRE_JA).forEach(([a, b]) => { t = t.split(a).join(mark(b)); });
+  return X(t).replace(/\u0001(\d+)\u0002/g, (m, i) => `<k>${X(parts[+i])}</k>`).replace(/\n/g, '<br/>');
+}
+const fromXml = v => v.replace(/<br\s*\/?>/g, '\n').replace(/<\/?k>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+let deeplWarned = '';
+async function deeplBatch(texts, tl = TRL) {
+  const r = await fh('/api/translate', { method: 'POST', body: JSON.stringify({ tl, items: texts.map(text => ({ text: trSourceXml(text, tl) })) }) });
+  if (r.code && r.code !== deeplWarned) { deeplWarned = r.code; toast(r.err + ' Mientras, se usa el traductor de Google.', 6000); }
+  return (r.out || []).map(x => x == null ? null : (() => { let o = fromXml(x); if (tl === 'es') POST_ES.forEach(([re, b]) => { o = o.replace(re, b); }); return o; })());
+}
 // Traducción de una carta al idioma elegido (en inglés, si hay texto oficial se usa tal cual)
 async function translateCard(c) {
   const src = trSourceFor(c); if (!src) return null;
-  const t = src.official ? trSource(src.text, 'en', 'en') : await translateText(trSource(src.text, src.lang), src.lang);
-  return { t, src: src.official ? 'official' : src.lang, ed: false };
+  if (src.deepl) { try { const [t] = await deeplBatch([src.text]); if (t) return { t, src: 'deepl', ed: false }; } catch (e) {} }
+  const g = src.deepl ? trSourceFor(c, true) : src; if (!g) return null;
+  const t = g.official ? trSource(g.text, 'en', 'en') : await translateText(trSource(g.text, g.lang), g.lang);
+  return { t, src: g.official ? 'official' : g.lang, ed: false };
 }
+// Las traducciones automáticas que no son de DeepL (ni el texto oficial) se pueden mejorar; las corregidas a mano no se tocan nunca
+const trUpgradable = (t, c) => deeplOn() && t && !t.ed && t.src !== 'deepl' && t.src !== 'official' && c && c.info && c.info.sk;
 const fmtTr = s => esc(s || '').replace(/\[([^\]\n]{1,70})\]/g, '<span class="kw">$1</span>');
 let trKey = null, trSrc = null, trEditing = false, trTimer = null;
-function trSourceFor(c) {
-  const en = EN_BY_NO[c.no];
+function trSourceFor(c, noDeepl) {
+  const en = EN_BY_NO[c.no], i0 = c.info;
   if (TRL === 'en') {
     if (c.lang === 'en') return null; // la carta ya está en inglés
     if (en && en.sk) return { lang: 'en', official: true, text: [en.sk, en.an].filter(Boolean).join('¶¶'), label: 'texto oficial en inglés' };
-  } else if (en && en.sk) return { lang: 'en', text: [en.sk, en.an].filter(Boolean).join('¶¶'), label: 'traducido del texto oficial en inglés' };
+  }
+  if (!noDeepl && deeplOn() && i0 && i0.sk) return { lang: 'ja', deepl: true, text: [i0.sk, i0.an].filter(Boolean).join('¶¶'), label: 'traducido del japonés con DeepL' };
+  if (TRL === 'en') {} else if (en && en.sk) return { lang: 'en', text: [en.sk, en.an].filter(Boolean).join('¶¶'), label: 'traducido del texto oficial en inglés' };
   const i = c.info;
   if (i && i.sk) return { lang: 'ja', text: [i.sk, i.an].filter(Boolean).join('¶¶'), label: 'traducido del japonés' };
   return null;
 }
 function paintTr() {
   const t = TR[trKey];
-  $('iTrSrc').textContent = t ? (t.ed ? 'corregido por ti' : trSrc.label) : trSrc.label;
+  $('iTrSrc').textContent = t ? (t.ed ? 'corregido por ti' : t.src === 'deepl' ? 'traducido del japonés con DeepL' : t.src === 'official' ? 'texto oficial en inglés' : t.src === 'ja' ? 'traducido del japonés (Google)' : t.src === 'en' ? 'traducido del texto oficial en inglés (Google)' : trSrc.label) : trSrc.label;
   $('iTrRedo').hidden = !t;
   $('iTrEdit').hidden = !t;
   $('iTrEdit').textContent = trEditing ? 'Listo' : 'Editar';
@@ -2671,7 +2697,8 @@ async function runTranslate(force) {
   $('iTrView').innerHTML = `<span class="trview-load">${src.official ? 'Cargando texto oficial…' : 'Traduciendo…'}</span>`; $('iTrMsg').textContent = '';
   try {
     const c = BY_ID[infoId];
-    TR[key] = { ...(await translateCard(c)), ts: Date.now() }; saveTR();
+    const nt = await translateCard(c); if (!nt) return;
+    TR[key] = { ...(TR[key] || {}), ...nt, ts: Date.now() }; saveTR();   // conserva los rasgos escritos a mano
     if (trKey === key) { trEditing = false; paintTr(); }
   } catch (e) {
     if (trKey !== key) return;
@@ -2682,7 +2709,7 @@ async function runTranslate(force) {
 }
 function setupTranslation(c) {
   trSrc = trSourceFor(c); trKey = trKeyFor(c.no); trEditing = false; clearTimeout(trTimer);
-  $('iTrLang').value = TRL;
+  $('iTrLang').value = TRL; $('iTrEng').value = TR_ENG; $('iTrEng').hidden = (() => { try { return !AC.deepl; } catch (e) { return true; } })();
   $('iTrText').lang = TRL;
   // La caja sigue visible (para poder cambiar de idioma) aunque no haya nada que traducir
   const nothing = !trSourceForAny(c);
@@ -2699,7 +2726,7 @@ function setupTranslation(c) {
   $('iTr').href = `https://translate.google.com/?sl=${trSrc.lang}&tl=${TRL}&op=translate&text=${encodeURIComponent(plain)}`;
   $('iTrMsg').textContent = '';
   paintTr();
-  if (!TR[trKey]) runTranslate(false);
+  if (!TR[trKey] || trUpgradable(TR[trKey], c)) runTranslate(false);   // también mejora con DeepL las automáticas antiguas
 }
 function trSourceForAny(c) { const en = EN_BY_NO[c.no]; return (en && en.sk) || (c.info && c.info.sk); }
 function setTrLang(l) {
@@ -2707,6 +2734,7 @@ function setTrLang(l) {
   $('iTrLang').value = l; $('shTrLang').value = l;
 }
 $('iTrLang').onchange = () => { setTrLang($('iTrLang').value); setupTranslation(BY_ID[infoId]); };
+$('iTrEng').onchange = () => { TR_ENG = $('iTrEng').value; try { localStorage.setItem('vobaca-treng', TR_ENG); } catch (e) {} setupTranslation(BY_ID[infoId]); };
 $('iTrEdit').onclick = () => {
   if (!TR[trKey]) return;
   trEditing = !trEditing;
@@ -5458,19 +5486,31 @@ $('useEn').onchange = () => { USE_EN = $('useEn').checked; try { localStorage.se
 // ---- Traducir todas las cartas del mazo de una vez ----
 async function translateDeck() {
   const ids = [...new Set(items().concat(maybeItems()))];
-  const todo = [...new Set(ids.map(id => BY_ID[id]).filter(c => c && c.lang !== 'en' && c.info && c.info.sk && !TR[trKeyFor(c.no)] && trSourceFor(c)).map(c => c.no))];
-  if (!todo.length) { toast(`Todas las cartas japonesas del mazo ya están traducidas al ${TRL === 'en' ? 'inglés' : 'español'}.`); return; }
+  const need = c => { const t = TR[trKeyFor(c.no)]; return !t || trUpgradable(t, c); };   // las corregidas a mano nunca se tocan
+  const todo = [...new Set(ids.map(id => BY_ID[id]).filter(c => c && c.lang !== 'en' && c.info && c.info.sk && need(c) && trSourceFor(c)).map(c => c.no))];
+  if (!todo.length) { toast(`Todas las cartas japonesas del mazo ya están traducidas al ${TRL === 'en' ? 'inglés' : 'español'}${deeplOn() ? ' con DeepL (o corregidas por ti)' : ''}.`); return; }
   const btn = $('dkTrAll'); btn.disabled = true;
-  let done = 0, fail = 0;
-  for (const no of todo) {
-    const c = JP_BASE[no] || BY_ID[ids.find(id => BY_ID[id].no === no)];
+  const cardOf = no => JP_BASE[no] || BY_ID[ids.find(id => BY_ID[id].no === no)];
+  const put = (no, nt) => { const k = trKeyFor(no); TR[k] = { ...(TR[k] || {}), ...nt, ts: Date.now() }; };
+  let done = 0, fail = 0, rest = todo;
+  if (deeplOn()) {   // DeepL: de 25 en 25 cartas por petición
+    rest = [];
+    for (let i = 0; i < todo.length; i += 25) {
+      const part = todo.slice(i, i + 25).map(no => ({ no, src: trSourceFor(cardOf(no)) })).filter(x => x.src && x.src.deepl);
+      toast(`Traduciendo con DeepL ${Math.min(i + 25, todo.length)} de ${todo.length}…`, 60000);
+      let res = []; try { res = await deeplBatch(part.map(x => x.src.text)); } catch (e) {}
+      part.forEach((x, n) => { if (res[n]) { put(x.no, { t: res[n], src: 'deepl', ed: false }); done++; } else if (!TR[trKeyFor(x.no)]) rest.push(x.no); });
+      todo.slice(i, i + 25).forEach(no => { if (!part.some(x => x.no === no) && !TR[trKeyFor(no)]) rest.push(no); });
+      saveTR();
+    }
+  }
+  for (const no of rest) {   // Google, para lo que falte
     toast(`Traduciendo ${done + 1} de ${todo.length}…`, 60000);
-    try { TR[trKeyFor(no)] = { ...(await translateCard(c)), ts: Date.now() }; saveTR(); } catch (e) { fail++; }
-    done++;
+    try { const nt = await translateCard(cardOf(no)); if (nt) put(no, nt); saveTR(); done++; } catch (e) { fail++; }
     await new Promise(r => setTimeout(r, 250));
   }
   btn.disabled = false;
-  toast(fail ? `Traducidas ${done - fail} de ${done}. ${fail} no se han podido traducir (¿sin conexión?).` : `Traducidas ${done} cartas al ${TRL === 'en' ? 'inglés' : 'español'}. Puedes revisarlas en la ficha de cada carta.`, 6000);
+  toast(fail ? `Traducidas ${done} de ${done + fail}. ${fail} no se han podido traducir (¿sin conexión?).` : `Traducidas ${done} cartas al ${TRL === 'en' ? 'inglés' : 'español'}. Las que corregiste a mano se han quedado igual.`, 6000);
 }
 $('dkTrAll').onclick = translateDeck;
 
@@ -6580,7 +6620,7 @@ async function accountInit() {
   try {
     const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 6000);
     const r = await fetch('/api/health', { cache: 'no-store', signal: ctl.signal }); clearTimeout(tm);
-    const j = r.ok ? await r.json() : null; AC.ok = !!(j && j.app === 'fly-high-vobaca' && j.login && j.db);
+    const j = r.ok ? await r.json() : null; AC.ok = !!(j && j.app === 'fly-high-vobaca' && j.login && j.db); AC.deepl = !!(AC.ok && j.deepl);
   } catch (e) { AC.ok = false; }
   if (AC.ok && SY.acct) { await refreshMe(); if (SY.acct) syncNow(); }
   paintAccount();
